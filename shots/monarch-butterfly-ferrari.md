@@ -31,6 +31,17 @@ than the clouds do.
 
 ---
 
+## Reference render
+
+`monarch-butterfly-ferrari.html` is a procedural previz of this shot — open it
+in a browser, no build step and no assets. Every element is drawn from the beat
+table above: the timeline functions near the top of the script (`camZoom`,
+`ambient`, `lightning`, `flightPos`, `flapAngle`) are the shot, and the rest is
+just paint. Scrub it to check timing before spending generations, or edit the
+numbers to argue with a beat.
+
+---
+
 ## Prompt variants
 
 ### Veo / Sora (prose, camera-language forward)

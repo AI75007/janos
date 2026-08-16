@@ -1,0 +1,1075 @@
+<title>Monarch on Rosso Corsa</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Monarch Butterfly on Ferrari Hood — procedural previz render.
+
+  A canvas-2D animatic of the shot described in monarch-butterfly-ferrari.md.
+  Everything is drawn from code: no images, no libraries. The timeline below is
+  the beat breakdown from the spec, expressed as functions of t (seconds).
+
+    0.0-2.0  butterfly enters upper-left, slow wingbeat, drifting
+    2.0-3.5  descends, wings flare to brake, camera push begins
+    3.5-4.5  touchdown on wet clearcoat, reflection meets real wings
+    4.5-6.5  one slow fold-and-open, bead rolls past the feet
+    6.5-7.2  lightning: hard blue-white key, blown specular, backlit wings
+    7.2-8.0  return to ambient one stop down, rain freckles the paint
+
+  The exposure ramp is the storm. The bolt stays offscreen on purpose.
+-->
+<style>
+  :root {
+    --bg: #f4f2ef;
+    --panel: #ffffff;
+    --ink: #14110f;
+    --muted: #6b6560;
+    --line: #ddd7d0;
+    --accent: #c8102e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d0c0b;
+      --panel: #171513;
+      --ink: #ece8e3;
+      --muted: #8d857c;
+      --line: #2a2724;
+      --accent: #ff3b52;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d0c0b;
+    --panel: #171513;
+    --ink: #ece8e3;
+    --muted: #8d857c;
+    --line: #2a2724;
+    --accent: #ff3b52;
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 14px/1.5 ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 60px; }
+  header { margin-bottom: 18px; }
+  h1 { font-size: 19px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0; }
+
+  .stage {
+    background: #000;
+    border-radius: 6px;
+    overflow: hidden;
+    line-height: 0;
+    box-shadow: 0 18px 50px -22px rgba(0,0,0,.6);
+  }
+  canvas { width: 100%; height: auto; display: block; }
+
+  .bar {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    margin-top: 14px; padding: 12px 14px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+  }
+  button {
+    font: inherit; font-size: 13px; color: var(--ink);
+    background: transparent; border: 1px solid var(--line);
+    border-radius: 4px; padding: 6px 13px; cursor: pointer;
+  }
+  button:hover { border-color: var(--muted); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  input[type=range] { flex: 1 1 220px; min-width: 160px; accent-color: var(--accent); }
+  .tc {
+    font: 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--muted); min-width: 92px; letter-spacing: .02em;
+  }
+  label.chk { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12.5px; cursor: pointer; }
+
+  .beats { margin-top: 20px; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 12px 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  tr.on td { color: var(--accent); }
+  td.t { font: 12px/1.5 ui-monospace, Menlo, monospace; white-space: nowrap; width: 1%; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Monarch on Rosso Corsa</h1>
+    <p class="sub">Procedural previz — 8s, 24fps, 2.39:1. Every pixel drawn from the beat sheet.</p>
+  </header>
+
+  <div class="stage"><canvas id="c"></canvas></div>
+
+  <div class="bar">
+    <button id="play" class="primary">Pause</button>
+    <button id="restart">Restart</button>
+    <input id="scrub" type="range" min="0" max="8" step="0.001" value="0">
+    <span class="tc" id="tc">00:00.000</span>
+    <label class="chk"><input type="checkbox" id="cadence" checked> 24fps cadence</label>
+    <label class="chk"><input type="checkbox" id="grain" checked> grain</label>
+  </div>
+
+  <div class="beats">
+    <table id="beats">
+      <thead><tr><th>Time</th><th>Action</th><th>Camera</th><th>Light</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ------------------------------------------------------------------ *
+ * Constants
+ * ------------------------------------------------------------------ */
+
+const DUR      = 8.0;                 // shot length, seconds
+const ASPECT   = 2.39;                // anamorphic
+const BASE_W   = 1280;                // internal render width
+const BASE_H   = Math.round(BASE_W / ASPECT);
+
+// Landing mark, in normalised frame coords before the camera transform.
+const LAND = { x: 0.505, y: 0.615 };
+
+// Hood leading edge. Above it is sky, below it is Rosso Corsa.
+const HOOD_Y = 0.455;
+
+const BEATS = [
+  [0.0, 2.0, "Butterfly enters upper-left, wings beating slow, drifting on air", "Wide-ish macro, hood fills lower third", "Flat, overcast, cool"],
+  [2.0, 3.5, "Descends, wings flare to brake, legs extend", "Slow push begins", "Unchanged"],
+  [3.5, 4.5, "Touchdown on wet clearcoat; beads tremble, reflection meets wings", "Push continues into ECU", "Slight dim as clouds thicken"],
+  [4.5, 6.5, "Wings fold and open once, slow. Bead rolls past the feet", "Extreme close-up", "Ambient falls"],
+  [6.5, 7.2, "Lightning flash — one frame hot, one frame falloff", "Locked", "Hard blue-white key, specular blows out"],
+  [7.2, 8.0, "Return to ambient, wings still. Rain freckles the paint", "Holds, breathing drift", "Cool, one stop under"],
+];
+
+/* ------------------------------------------------------------------ *
+ * Math helpers
+ * ------------------------------------------------------------------ */
+
+const clamp  = (v, a = 0, b = 1) => v < a ? a : v > b ? b : v;
+const lerp   = (a, b, t) => a + (b - a) * t;
+const smooth = (t) => t * t * (3 - 2 * t);
+// Normalised, clamped, smoothed progress across [a,b].
+const ramp   = (t, a, b) => smooth(clamp((t - a) / (b - a)));
+const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+
+function mulberry32(seed) {
+  return function () {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let x = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    x = x + Math.imul(x ^ x >>> 7, 61 | x) ^ x;
+    return ((x ^ x >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+// Cheap smooth 1-D noise for handheld drift and wind.
+function noise1(x, seed = 0) {
+  const i = Math.floor(x), f = x - i;
+  const h = (n) => {
+    let k = Math.imul(n + seed * 374761393, 668265263);
+    k = (k ^ k >>> 13) * 1274126177;
+    return ((k ^ k >>> 16) >>> 0) / 4294967296 * 2 - 1;
+  };
+  return lerp(h(i), h(i + 1), smooth(f));
+}
+
+function makeCanvas(w, h) {
+  const cv = document.createElement("canvas");
+  cv.width = w; cv.height = h;
+  return cv;
+}
+
+/* ------------------------------------------------------------------ *
+ * Timeline — every animated value is a pure function of t
+ * ------------------------------------------------------------------ */
+
+// Camera magnification. Flat until the push starts at 2.0s, then a long
+// continuous move into the extreme close-up; nothing moves after the flash.
+function camZoom(t) {
+  const push = ramp(t, 2.0, 6.3);
+  return lerp(1.0, 2.75, easeOut(push));
+}
+
+// Operator breathing. Small, low-frequency, never resolves — it just drifts.
+function camDrift(t) {
+  const amp = 0.0035 + 0.0025 * ramp(t, 6.9, 8.0);
+  return { x: noise1(t * 0.55, 11) * amp, y: noise1(t * 0.47, 29) * amp * 0.7 };
+}
+
+// Ambient exposure. The slow fall is the storm arriving; the clouds are
+// only the visible excuse for it.
+function ambient(t) {
+  let a = 1.0;
+  a -= 0.10 * ramp(t, 3.4, 4.6);
+  a -= 0.30 * ramp(t, 4.5, 6.5);
+  a -= 0.07 * ramp(t, 6.5, 7.0);
+  a += 0.04 * ramp(t, 7.3, 8.0);   // sky opens a hair behind the cell
+  return a;
+}
+
+// Lightning: fast attack, exponential decay, three strokes. Returns 0..1.
+function lightning(t) {
+  const stroke = (t0, decay, amp) => {
+    if (t < t0) return 0;
+    const d = t - t0;
+    return amp * Math.exp(-d / decay) * (1 - Math.exp(-d / 0.004));
+  };
+  return clamp(stroke(6.52, 0.045, 1.0) + stroke(6.60, 0.022, 0.5) + stroke(6.74, 0.11, 0.62));
+}
+
+// Butterfly flight path, in normalised frame coords.
+function flightPos(t) {
+  if (t >= 4.5) {
+    // Planted. Only a micro tremble from wing motion and wind.
+    return { x: LAND.x, y: LAND.y + Math.sin(t * 3.1) * 0.0006 };
+  }
+  // Approach: a wandering bezier from upper-left down to the mark.
+  const p = clamp(t / 4.2);
+  const e = easeOut(p);
+  const x = lerp(-0.14, LAND.x, e) + Math.sin(t * 1.35) * 0.030 * (1 - e);
+  const yArc = lerp(0.10, LAND.y, smooth(p));
+  const bob = Math.sin(t * 2.6) * 0.026 * (1 - smooth(clamp((t - 1.6) / 2.2)));
+  // Flare: the brake. Rises a touch, then settles onto the mark.
+  const flare = Math.sin(ramp(t, 2.7, 3.6) * Math.PI) * 0.030;
+  const settle = ramp(t, 3.5, 4.5);
+  const y = lerp(yArc + bob - flare, LAND.y, settle * 0.6);
+  return { x, y };
+}
+
+// Wing angle, radians. 0 = flat open, PI/2 = folded closed above the body.
+function flapAngle(t) {
+  if (t < 2.0) {                                   // cruising, slow and deep
+    return 0.62 + Math.sin(t * 2 * Math.PI * 4.4) * 0.70;
+  }
+  if (t < 2.7) {                                   // descent, beat slows
+    const k = ramp(t, 2.0, 2.7);
+    return 0.62 + Math.sin(t * 2 * Math.PI * lerp(4.4, 2.6, k)) * lerp(0.70, 0.95, k);
+  }
+  if (t < 3.6) {                                   // flare — wings held wide
+    const k = ramp(t, 2.7, 3.6);
+    return lerp(1.35, 0.16, k) + Math.sin(t * 2 * Math.PI * 1.9) * 0.30 * (1 - k);
+  }
+  if (t < 4.8) {                                   // touchdown, wings settle
+    return lerp(0.16, 0.30, ramp(t, 3.6, 4.8)) + Math.sin(t * 5.2) * 0.02;
+  }
+  if (t < 6.4) {                                   // one slow fold and open
+    const k = clamp((t - 4.9) / 1.4);
+    return 0.30 + Math.sin(k * Math.PI) * 1.15;
+  }
+  return 0.30 + Math.sin(t * 1.7) * 0.012;         // still, breathing
+}
+
+// Body pitch: nose-up into the flare, level on the paint.
+function bodyRot(t) {
+  if (t < 2.0) return -0.16 + Math.sin(t * 1.9) * 0.06;
+  if (t < 3.6) return lerp(-0.16, -0.34, ramp(t, 2.0, 3.1)) * (1 - ramp(t, 3.1, 3.6)) - 0.02;
+  return lerp(-0.05, 0.0, ramp(t, 3.6, 4.5));
+}
+
+/* ------------------------------------------------------------------ *
+ * Static scatter — beads, cloud cells, grain, rain
+ * ------------------------------------------------------------------ */
+
+const rnd = mulberry32(20240816);
+
+// Water beads on the clearcoat, in hood-local coords (0..1 across, 0..1 down
+// from the leading edge). Size falls off toward the horizon for perspective.
+const BEADS = Array.from({ length: 380 }, () => {
+  const u = rnd(), v = Math.pow(rnd(), 0.62);
+  return {
+    u, v,
+    r: (0.9 + rnd() * 3.0) * (0.35 + v * 1.6),
+    squash: 0.55 + rnd() * 0.3,
+    bright: 0.5 + rnd() * 0.5,
+  };
+});
+
+const CLOUD_CELLS = Array.from({ length: 46 }, () => ({
+  x: rnd() * 1.5 - 0.25,
+  y: rnd() * 0.62,
+  r: 0.10 + rnd() * 0.26,
+  speed: 0.010 + rnd() * 0.022,
+  dark: 0.35 + rnd() * 0.55,
+  tone: rnd(),
+}));
+
+// Rain in the air: out of focus, so these are soft vertical smears.
+const RAIN = Array.from({ length: 90 }, () => ({
+  x: rnd(), y: rnd(), len: 0.02 + rnd() * 0.05,
+  speed: 0.55 + rnd() * 0.5, z: rnd(),
+}));
+
+// Impacts on the paint after 7.2s: expanding rings, each with its own onset.
+const FRECKLES = Array.from({ length: 34 }, () => ({
+  u: rnd(), v: 0.12 + rnd() * 0.88, t0: 7.18 + rnd() * 0.78, r: 3 + rnd() * 5,
+}));
+
+/* ------------------------------------------------------------------ *
+ * Canvas setup
+ * ------------------------------------------------------------------ */
+
+const view = document.getElementById("c");
+const vctx = view.getContext("2d");
+
+const W = BASE_W, H = BASE_H;
+view.width = W; view.height = H;
+
+// Working buffers. The hood is rendered sharp then re-drawn blurred so the
+// focal band can be composited back over it — that's the shallow DOF.
+const hoodBuf  = makeCanvas(W, H), hoodCtx  = hoodBuf.getContext("2d");
+const skyBuf   = makeCanvas(Math.round(W / 3), Math.round(H / 3));
+const skyCtx   = skyBuf.getContext("2d");
+const bugBuf   = makeCanvas(W, H), bugCtx   = bugBuf.getContext("2d");
+const maskBuf  = makeCanvas(W, H), maskCtx  = maskBuf.getContext("2d");
+
+// Defocus buffer. Blurring costs area, so the soft copies are made at half
+// resolution with half the radius and scaled back up — the downscale is
+// itself part of the blur, and nothing out of focus needs the extra pixels.
+const softBuf  = makeCanvas(W >> 1, H >> 1), softCtx = softBuf.getContext("2d");
+
+function drawSoft(dst, src, radius) {
+  softCtx.setTransform(1, 0, 0, 1, 0, 0);
+  softCtx.clearRect(0, 0, softBuf.width, softBuf.height);
+  softCtx.filter = `blur(${(radius / 2).toFixed(2)}px)`;
+  softCtx.drawImage(src, 0, 0, softBuf.width, softBuf.height);
+  softCtx.filter = "none";
+  dst.drawImage(softBuf, 0, 0, W, H);
+}
+
+// Grain tiles, cycled per frame so the noise crawls like film.
+const GRAIN_TILES = (() => {
+  const tiles = [];
+  for (let n = 0; n < 4; n++) {
+    const size = 256, cv = makeCanvas(size, size), cx = cv.getContext("2d");
+    const img = cx.createImageData(size, size), d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const g = 128 + (rnd() - 0.5) * 190;
+      d[i] = d[i + 1] = d[i + 2] = g;
+      d[i + 3] = 255;
+    }
+    cx.putImageData(img, 0, 0);
+    tiles.push(cv);
+  }
+  return tiles;
+})();
+
+/* ------------------------------------------------------------------ *
+ * Sky and storm
+ * ------------------------------------------------------------------ */
+
+function drawSky(t, amb, flash) {
+  const cx = skyCtx, w = skyBuf.width, h = skyBuf.height;
+  cx.setTransform(1, 0, 0, 1, 0, 0);
+  cx.clearRect(0, 0, w, h);
+
+  // Base gradient: cool grey-blue, dropping with the exposure ramp.
+  const lift = 1 + flash * 1.9;
+  const g = cx.createLinearGradient(0, 0, 0, h * (HOOD_Y + 0.06));
+  const top = [0.22, 0.25, 0.31], bot = [0.60, 0.65, 0.71];
+  const mix = (c) => `rgb(${c.map((v) => Math.round(clamp(v * amb * lift) * 255)).join(",")})`;
+  g.addColorStop(0, mix(top));
+  g.addColorStop(0.72, mix(bot));
+  g.addColorStop(1, mix(bot.map((v) => v * 1.06)));
+  cx.fillStyle = g;
+  cx.fillRect(0, 0, w, h);
+
+  // Cells. They drift right and thicken as the front arrives.
+  const thicken = 0.35 + 0.65 * ramp(t, 1.0, 6.4);
+  for (const c of CLOUD_CELLS) {
+    const x = (((c.x + t * c.speed) % 1.6) + 1.6) % 1.6 - 0.3;
+    const px = x * w, py = c.y * h, pr = c.r * w * 0.5;
+    const rg = cx.createRadialGradient(px, py, 0, px, py, pr);
+    const lum = clamp((0.22 + c.tone * 0.52) * amb * (1 - c.dark * thicken * 0.80) + flash * 0.95);
+    const warm = c.tone > 0.7 ? 1.04 : 0.94;
+    rg.addColorStop(0, `rgba(${Math.round(lum * 255 * warm)},${Math.round(lum * 252)},${Math.round(lum * 258)},${0.78 * thicken})`);
+    rg.addColorStop(1, "rgba(0,0,0,0)");
+    cx.fillStyle = rg;
+    cx.beginPath();
+    cx.arc(px, py, pr, 0, Math.PI * 2);
+    cx.fill();
+  }
+
+  // A darker base to the cell, sitting on the horizon.
+  const base = cx.createLinearGradient(0, h * 0.10, 0, h * HOOD_Y);
+  base.addColorStop(0, `rgba(18,20,26,${0.44 * thicken})`);
+  base.addColorStop(1, "rgba(18,20,26,0)");
+  cx.fillStyle = base;
+  cx.fillRect(0, 0, w, h * HOOD_Y);
+}
+
+/* ------------------------------------------------------------------ *
+ * Hood — Rosso Corsa under water
+ * ------------------------------------------------------------------ */
+
+function drawHood(t, amb, flash) {
+  const cx = hoodCtx;
+  cx.setTransform(1, 0, 0, 1, 0, 0);
+  cx.clearRect(0, 0, W, H);
+
+  const y0 = H * HOOD_Y;
+  // The flash barely touches the body colour — paint that dark only gets
+  // brighter in its highlights. Lifting the base is what turns Rosso Corsa
+  // into bubblegum, so keep this small and let the specular do the work.
+  const k = amb * (1 + flash * 0.14);
+
+  // Body colour. Deep at the leading edge where it turns away from the sky,
+  // hottest through the middle, falling off into the cowl at the bottom.
+  const g = cx.createLinearGradient(0, y0, 0, H);
+  const red = (r, gr, b, a = 1) =>
+    `rgba(${Math.round(clamp(r * k, 0, 1.6) * 255)},${Math.round(clamp(gr * k, 0, 1.6) * 255)},${Math.round(clamp(b * k, 0, 1.6) * 255)},${a})`;
+  g.addColorStop(0.00, red(0.42, 0.06, 0.10));
+  g.addColorStop(0.10, red(0.78, 0.05, 0.10));
+  g.addColorStop(0.42, red(0.86, 0.07, 0.13));
+  g.addColorStop(0.78, red(0.52, 0.03, 0.08));
+  g.addColorStop(1.00, red(0.20, 0.02, 0.04));
+  cx.fillStyle = g;
+  cx.fillRect(0, y0, W, H - y0);
+
+  // Panel curvature: the hood falls away toward the wings, so both sides go
+  // darker than the crown.
+  const curve = cx.createLinearGradient(0, 0, W, 0);
+  curve.addColorStop(0.00, "rgba(24,0,4,0.55)");
+  curve.addColorStop(0.22, "rgba(24,0,4,0.10)");
+  curve.addColorStop(0.55, "rgba(24,0,4,0)");
+  curve.addColorStop(0.82, "rgba(24,0,4,0.14)");
+  curve.addColorStop(1.00, "rgba(24,0,4,0.50)");
+  cx.fillStyle = curve;
+  cx.fillRect(0, y0, W, H - y0);
+
+  // Sky reflection riding the crown of the hood. This is the surface that
+  // the lightning blows out — it has to be there or the flash lands flat.
+  const refl = cx.createLinearGradient(0, y0, 0, y0 + H * 0.13);
+  const rl = clamp(0.30 * amb + flash * 1.5, 0, 1);
+  refl.addColorStop(0, `rgba(${Math.round(190 * rl)},${Math.round(205 * rl)},${Math.round(228 * rl)},${0.55 + flash * 0.4})`);
+  refl.addColorStop(1, "rgba(140,160,190,0)");
+  cx.globalCompositeOperation = "lighter";
+  cx.fillStyle = refl;
+  cx.fillRect(0, y0, W, H * 0.14);
+  cx.globalCompositeOperation = "source-over";
+
+  // Clearcoat sweep — a broad soft specular across the panel.
+  cx.save();
+  cx.globalCompositeOperation = "lighter";
+  const sx = W * 0.42, sy = y0 + H * 0.20;
+  cx.translate(sx, sy);
+  cx.scale(1, 0.20);
+  const sr = W * 0.34;
+  const sw = cx.createRadialGradient(0, 0, 0, 0, 0, sr);
+  const si = 0.15 * amb + flash * 0.55;
+  sw.addColorStop(0, `rgba(255,240,235,${si})`);
+  sw.addColorStop(0.35, `rgba(255,170,160,${si * 0.30})`);
+  sw.addColorStop(1, "rgba(255,120,120,0)");
+  cx.fillStyle = sw;
+  cx.beginPath();
+  cx.arc(0, 0, sr, 0, Math.PI * 2);
+  cx.fill();
+  cx.restore();
+
+  // Panel shut line and the centre crease.
+  cx.strokeStyle = `rgba(${Math.round(30 * k)},${Math.round(4 * k)},${Math.round(8 * k)},0.75)`;
+  cx.lineWidth = Math.max(1, W * 0.0016);
+  cx.beginPath();
+  cx.moveTo(-10, y0 + H * 0.40);
+  cx.bezierCurveTo(W * 0.3, y0 + H * 0.36, W * 0.7, y0 + H * 0.36, W + 10, y0 + H * 0.41);
+  cx.stroke();
+  cx.strokeStyle = `rgba(255,190,180,${0.10 * amb + flash * 0.5})`;
+  cx.lineWidth = Math.max(1, W * 0.0009);
+  cx.beginPath();
+  cx.moveTo(-10, y0 + H * 0.393);
+  cx.bezierCurveTo(W * 0.3, y0 + H * 0.353, W * 0.7, y0 + H * 0.353, W + 10, y0 + H * 0.403);
+  cx.stroke();
+
+  // The leading edge itself: a bright wet lip against the sky.
+  const lip = cx.createLinearGradient(0, y0 - 3, 0, y0 + 5);
+  lip.addColorStop(0, `rgba(${Math.round(170 * rl + flash * 90)},${Math.round(180 * rl)},${Math.round(200 * rl)},0.9)`);
+  lip.addColorStop(1, "rgba(60,6,12,0)");
+  cx.fillStyle = lip;
+  cx.fillRect(0, y0 - 3, W, 9);
+
+  drawBeads(cx, t, amb, flash, y0);
+  drawFreckles(cx, t, amb, y0);
+}
+
+function beadXY(b, y0) {
+  return { x: b.u * W, y: y0 + Math.pow(b.v, 1.35) * (H - y0) };
+}
+
+function drawBeads(cx, t, amb, flash, y0) {
+  const tremble = Math.exp(-Math.abs(t - 3.62) / 0.16) + Math.exp(-Math.abs(t - 6.55) / 0.10);
+
+  for (const b of BEADS) {
+    const { x, y } = beadXY(b, y0);
+    const r = b.r * (W / 1400) * (1 + tremble * 0.10);
+    if (r < 0.35) continue;
+
+    cx.save();
+    cx.translate(x, y);
+    cx.scale(1, b.squash);
+
+    // Shadow the bead casts into the paint, offset down-right.
+    cx.fillStyle = `rgba(${Math.round(48 * amb)},2,7,0.42)`;
+    cx.beginPath();
+    cx.arc(r * 0.16, r * 0.22, r, 0, Math.PI * 2);
+    cx.fill();
+
+    // Sky caught in the top of the bead, paint glowing through the bottom.
+    const gl = cx.createRadialGradient(-r * 0.32, -r * 0.38, 0, 0, 0, r * 1.05);
+    const gi = clamp(b.bright * (0.72 * amb + flash * 1.6));
+    gl.addColorStop(0, `rgba(255,253,251,${gi})`);
+    gl.addColorStop(0.26, `rgba(208,216,234,${gi * 0.38})`);
+    gl.addColorStop(0.62, `rgba(224,52,58,${gi * 0.46})`);
+    gl.addColorStop(1, "rgba(160,14,22,0)");
+    cx.fillStyle = gl;
+    cx.beginPath();
+    cx.arc(0, 0, r, 0, Math.PI * 2);
+    cx.fill();
+
+    // Specular pip. Only worth drawing once the bead is big enough to hold it.
+    if (r > 1.6) {
+      cx.fillStyle = `rgba(255,255,255,${clamp(0.55 * amb + flash)})`;
+      cx.beginPath();
+      cx.arc(-r * 0.34, -r * 0.40, r * 0.22, 0, Math.PI * 2);
+      cx.fill();
+    }
+    cx.restore();
+  }
+
+  // The bead that rolls past the feet, 4.6s to 6.4s.
+  if (t > 4.55 && t < 6.6) {
+    const p = clamp((t - 4.55) / 1.85);
+    const x = W * (LAND.x + 0.055 + p * 0.055);
+    const y = lerp(y0 + (H - y0) * 0.22, H * 0.92, easeOut(p));
+    const r = 5.2 * (W / 1400) * (1 + p * 0.5);
+    // Wet trail behind it — the paint it stripped clean, fading out at the
+    // top where the surface has already re-beaded.
+    const sx0 = W * (LAND.x + 0.055), sy0 = y0 + (H - y0) * 0.22;
+    const tr = cx.createLinearGradient(sx0, sy0, x, y);
+    tr.addColorStop(0, "rgba(255,200,190,0)");
+    tr.addColorStop(1, `rgba(255,200,190,${0.06 * amb})`);
+    cx.strokeStyle = tr;
+    cx.lineWidth = r * 0.9;
+    cx.beginPath();
+    cx.moveTo(sx0, sy0);
+    cx.lineTo(x, y);
+    cx.stroke();
+
+    cx.save();
+    cx.translate(x, y);
+    cx.scale(1, 0.8);
+    cx.fillStyle = `rgba(${Math.round(70 * amb)},5,12,0.6)`;
+    cx.beginPath(); cx.arc(0, 0, r, 0, Math.PI * 2); cx.fill();
+    const gl = cx.createRadialGradient(-r * 0.3, -r * 0.4, 0, 0, 0, r);
+    gl.addColorStop(0, `rgba(255,255,252,${0.8 * amb})`);
+    gl.addColorStop(1, "rgba(140,20,25,0)");
+    cx.fillStyle = gl;
+    cx.beginPath(); cx.arc(0, 0, r, 0, Math.PI * 2); cx.fill();
+    cx.restore();
+  }
+}
+
+function drawFreckles(cx, t, amb, y0) {
+  if (t < 7.15) return;
+  for (const f of FRECKLES) {
+    if (t < f.t0) continue;
+    const age = t - f.t0;
+    const grow = clamp(age / 0.42);
+    const r = f.r * (W / 1400) * (0.4 + grow * 2.6);
+    const a = (1 - grow) * 0.5 * amb;
+    if (a <= 0.005) continue;
+    const y = y0 + Math.pow(f.v, 1.35) * (H - y0);
+    cx.save();
+    cx.translate(f.u * W, y);
+    cx.scale(1, 0.45);
+    cx.strokeStyle = `rgba(255,205,195,${a})`;
+    cx.lineWidth = Math.max(0.6, 1.6 * (1 - grow));
+    cx.beginPath();
+    cx.arc(0, 0, r, 0, Math.PI * 2);
+    cx.stroke();
+    cx.restore();
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * The Monarch
+ * ------------------------------------------------------------------ */
+
+// One wing in local space: +x outboard, +y toward the tail. Unit ≈ wingspan/2.
+function wingPath(cx, fore) {
+  cx.beginPath();
+  if (fore) {
+    cx.moveTo(0, 0.02);
+    cx.bezierCurveTo(0.34, -0.44, 0.86, -0.52, 1.00, -0.20);
+    cx.bezierCurveTo(1.06, -0.06, 0.96, 0.12, 0.72, 0.22);
+    cx.bezierCurveTo(0.46, 0.32, 0.18, 0.26, 0, 0.16);
+  } else {
+    cx.moveTo(0, 0.10);
+    cx.bezierCurveTo(0.28, 0.14, 0.58, 0.28, 0.64, 0.50);
+    cx.bezierCurveTo(0.66, 0.66, 0.50, 0.74, 0.32, 0.68);
+    cx.bezierCurveTo(0.14, 0.62, 0.02, 0.42, 0, 0.22);
+  }
+  cx.closePath();
+}
+
+function paintWing(cx, s, fore, amb, flash, backlit) {
+  cx.save();
+  cx.scale(s, s);
+
+  // Membrane. Backlit by the flash, the orange goes translucent and hot.
+  const base = fore ? ["#f08a1e", "#d46110"] : ["#e8801c", "#c2540d"];
+  const g = cx.createLinearGradient(0, -0.4, 0.9, 0.6);
+  const bl = backlit;
+  g.addColorStop(0, shade(base[0], amb + bl * 1.25));
+  g.addColorStop(1, shade(base[1], amb + bl * 0.95));
+  wingPath(cx, fore);
+  cx.fillStyle = g;
+  cx.fill();
+
+  // Black border with the white marginal spots.
+  cx.save();
+  wingPath(cx, fore);
+  cx.clip();
+  cx.strokeStyle = shade("#120d09", amb * 0.9 + bl * 0.25);
+  cx.lineWidth = 0.13;
+  wingPath(cx, fore);
+  cx.stroke();
+
+  const dots = fore
+    ? [[0.96, -0.22], [0.90, -0.05], [0.78, 0.11], [0.60, 0.20], [0.86, -0.36], [0.70, -0.40]]
+    : [[0.58, 0.44], [0.52, 0.60], [0.36, 0.66], [0.20, 0.60], [0.62, 0.30]];
+  cx.fillStyle = shade("#fdfbf6", amb + bl * 0.9);
+  for (const [dx, dy] of dots) {
+    cx.beginPath();
+    cx.ellipse(dx, dy, 0.045, 0.032, 0.3, 0, Math.PI * 2);
+    cx.fill();
+  }
+  cx.restore();
+
+  // Veins — the black tracery that makes it read as a Monarch and not a
+  // generic orange butterfly.
+  cx.save();
+  wingPath(cx, fore);
+  cx.clip();
+  cx.strokeStyle = shade("#150e08", amb * 0.95 + bl * 0.15);
+  cx.lineCap = "round";
+  const veins = fore
+    ? [[0.98, -0.26], [0.94, -0.10], [0.84, 0.06], [0.68, 0.18], [0.50, 0.22], [0.80, -0.38]]
+    : [[0.60, 0.36], [0.58, 0.52], [0.44, 0.64], [0.26, 0.62], [0.12, 0.44]];
+  for (const [vx, vy] of veins) {
+    cx.lineWidth = 0.028;
+    cx.beginPath();
+    cx.moveTo(0, fore ? 0.06 : 0.14);
+    cx.quadraticCurveTo(vx * 0.55, vy * 0.45, vx, vy);
+    cx.stroke();
+  }
+  // Cross-veins.
+  cx.lineWidth = 0.016;
+  cx.beginPath();
+  if (fore) {
+    cx.moveTo(0.30, -0.20); cx.quadraticCurveTo(0.58, -0.12, 0.74, 0.10);
+    cx.moveTo(0.46, -0.34); cx.quadraticCurveTo(0.70, -0.26, 0.86, -0.12);
+  } else {
+    cx.moveTo(0.16, 0.30); cx.quadraticCurveTo(0.40, 0.40, 0.52, 0.58);
+  }
+  cx.stroke();
+  cx.restore();
+
+  // Scale glitter — only visible once the camera is close enough to resolve it.
+  cx.restore();
+}
+
+function shade(hex, k) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = clamp(((n >> 16) & 255) / 255 * k, 0, 1) * 255;
+  const g = clamp(((n >> 8) & 255) / 255 * k, 0, 1) * 255;
+  const b = clamp((n & 255) / 255 * k, 0, 1) * 255;
+  return `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
+}
+
+// Draw the butterfly at (px,py) in device pixels, wingspan `span` px.
+function drawButterfly(cx, px, py, span, t, amb, flash, opts = {}) {
+  const flap = opts.flap !== undefined ? opts.flap : flapAngle(t);
+  const rot = opts.rot !== undefined ? opts.rot : bodyRot(t);
+  const s = span * 0.5;
+  const backlit = flash * (opts.backlit === false ? 0 : 1);
+
+  cx.save();
+  cx.translate(px, py);
+  cx.rotate(rot);
+
+  // Projection. The camera sits low — about 27 degrees above the hood and
+  // 24 degrees off the butterfly's axis. Ground-plane coordinates (lateral,
+  // fore-aft) go through M; anything that lifts out of that plane keeps
+  // almost its full screen height (LIFT). So a wing at flap angle f reads as
+  // its outboard span * cos f, rising by sin f, and still shows its profile
+  // when folded because the yaw keeps the fore-aft axis on screen.
+  const PLAN = 0.46, LIFT = 0.92, YAW = 0.42;
+  const cy = Math.cos(YAW), sy = Math.sin(YAW);
+  const M = { a: cy, b: -PLAN * sy, c: sy, d: PLAN * cy };
+
+  // Plan point (lateral, fore-aft) at height h, in screen coords.
+  const proj = (x, y, h = 0) => ({
+    x: (M.a * x + M.c * y) * s,
+    y: (M.b * x + M.d * y - LIFT * h) * s,
+  });
+
+  const spread = Math.cos(flap);
+  const rise = Math.sin(flap);
+
+  for (const side of [-1, 1]) {
+    // Draw the far wing first — it's the one leaning away from the camera.
+    const lean = side * spread;
+    const far = lean * sy < 0;
+    cx.save();
+    cx.transform(M.a * lean, M.b * lean - LIFT * rise, M.c, M.d, 0, 0);
+    const dim = far ? 0.80 : 1.0;         // far wing sits in its own shadow
+    paintWing(cx, s, false, amb * dim, backlit * dim, backlit);
+    paintWing(cx, s, true, amb * dim, backlit * dim, backlit);
+    cx.restore();
+  }
+
+  // Body. Foreshortened and angled by the same yaw — at this camera the
+  // abdomen is a stubby bar, not the long spindle you get from overhead.
+  const bodyC = shade("#1a1410", amb + backlit * 0.4);
+  cx.save();
+  cx.transform(M.a, M.b, M.c, M.d, 0, -LIFT * s * 0.035);
+  cx.fillStyle = bodyC;
+  cx.beginPath();
+  cx.ellipse(0, s * 0.17, s * 0.070, s * 0.36, 0, 0, Math.PI * 2);
+  cx.fill();
+  cx.beginPath();
+  cx.ellipse(0, -s * 0.09, s * 0.095, s * 0.19, 0, 0, Math.PI * 2);
+  cx.fill();
+  cx.restore();
+
+  // White speckles down the thorax.
+  cx.fillStyle = shade("#efe9e0", amb * 0.85);
+  for (let i = 0; i < 5; i++) {
+    const p = proj((i % 2 ? 1 : -1) * 0.030, -0.16 + i * 0.055, 0.055);
+    cx.beginPath();
+    cx.arc(p.x, p.y, s * 0.013, 0, Math.PI * 2);
+    cx.fill();
+  }
+
+  // Antennae, with the clubbed tips. They rise out of the plane, so they pick
+  // up the LIFT term rather than the plan squash.
+  cx.strokeStyle = bodyC;
+  cx.lineWidth = Math.max(0.7, s * 0.016);
+  cx.lineCap = "round";
+  for (const side of [-1, 1]) {
+    const base = proj(side * 0.03, -0.20, 0.06);
+    const mid = proj(side * 0.13, -0.40, 0.13);
+    const tip = proj(side * 0.19, -0.52, 0.17);
+    cx.beginPath();
+    cx.moveTo(base.x, base.y);
+    cx.quadraticCurveTo(mid.x, mid.y, tip.x, tip.y);
+    cx.stroke();
+    cx.beginPath();
+    cx.arc(tip.x, tip.y, s * 0.020, 0, Math.PI * 2);
+    cx.fillStyle = bodyC;
+    cx.fill();
+  }
+
+  // Legs: extended into the flare, planted after touchdown.
+  const reach = ramp(t, 2.6, 3.5) * (1 - ramp(t, 4.4, 4.9) * 0.35);
+  if (reach > 0.01) {
+    cx.strokeStyle = shade("#241a13", amb * 0.95);
+    cx.lineWidth = Math.max(0.6, s * 0.012);
+    for (const side of [-1, 1]) {
+      for (let i = 0; i < 3; i++) {
+        const out = 0.10 + i * 0.045;
+        const fa = -0.04 + i * 0.09;
+        const hip = proj(side * 0.05, fa, 0.05);
+        const knee = proj(side * out, fa + 0.03, 0.055 * (1 - reach * 0.5));
+        const foot = proj(side * out * 0.95, fa + 0.05, 0);
+        cx.beginPath();
+        cx.moveTo(hip.x, hip.y);
+        cx.quadraticCurveTo(knee.x, knee.y, foot.x, foot.y);
+        cx.stroke();
+      }
+    }
+  }
+
+  cx.restore();
+}
+
+/* ------------------------------------------------------------------ *
+ * Frame assembly
+ * ------------------------------------------------------------------ */
+
+let showGrain = true;
+
+function renderFrame(t) {
+  const amb = ambient(t);
+  const flash = lightning(t);
+  const zoom = camZoom(t);
+  const drift = camDrift(t);
+  const pos = flightPos(t);
+
+  drawSky(t, amb, flash);
+  drawHood(t, amb, flash);
+
+  vctx.setTransform(1, 0, 0, 1, 0, 0);
+  vctx.fillStyle = "#000";
+  vctx.fillRect(0, 0, W, H);
+
+  // Camera: magnify about the landing mark, plus the handheld drift.
+  vctx.save();
+  const fx = (LAND.x + drift.x) * W, fy = (LAND.y + drift.y) * H;
+  vctx.translate(fx, fy);
+  vctx.scale(zoom, zoom);
+  vctx.translate(-LAND.x * W, -LAND.y * H);
+
+  // Background: always well behind the focal plane, so always soft. It gets
+  // softer as the lens pushes in and the depth of field collapses. The sky
+  // buffer is already a third-scale render, so it blurs almost for free.
+  vctx.save();
+  vctx.filter = `blur(${((9 + zoom * 5) / 3).toFixed(1)}px)`;
+  vctx.drawImage(skyBuf, -W * 0.05, -H * 0.05, W * 1.1, H * 1.1);
+  vctx.filter = "none";
+  vctx.restore();
+
+  drawRain(vctx, t, amb, flash, zoom);
+
+  // Hood, twice: blurred everywhere, sharp only in the focal band around the
+  // butterfly's thorax. The band narrows as the camera pushes in.
+  drawSoft(vctx, hoodBuf, 1.1 + zoom * 1.7);
+
+  const bandCtx = maskCtx;
+  bandCtx.setTransform(1, 0, 0, 1, 0, 0);
+  bandCtx.clearRect(0, 0, W, H);
+  bandCtx.drawImage(hoodBuf, 0, 0);
+  bandCtx.globalCompositeOperation = "destination-in";
+  const halfBand = H * (0.36 / zoom);
+  const focusY = pos.y * H;
+  const bg = bandCtx.createLinearGradient(0, focusY - halfBand, 0, focusY + halfBand);
+  bg.addColorStop(0.0, "rgba(0,0,0,0)");
+  bg.addColorStop(0.5, "rgba(0,0,0,1)");
+  bg.addColorStop(1.0, "rgba(0,0,0,0)");
+  bandCtx.fillStyle = bg;
+  bandCtx.fillRect(0, 0, W, H);
+  bandCtx.globalCompositeOperation = "source-over";
+  vctx.drawImage(maskBuf, 0, 0);
+
+  const span = W * 0.13 * (1 + ramp(t, 3.4, 4.6) * 0.06);
+  // Where the feet meet the paint — never above the hood's leading edge.
+  const contact = Math.max(pos.y * H + span * 0.03, H * HOOD_Y + 6);
+  const gap = Math.max(0, contact - pos.y * H);
+  // Nothing reflects until the insect is actually over the panel.
+  const overHood = pos.y > HOOD_Y;
+
+  // Contact shadow. Overcast light, so it's broad and weak, and it tightens
+  // as the insect comes down.
+  if (gap < H * 0.18) {
+    const near = clamp(1 - gap / (H * 0.18));
+    vctx.save();
+    vctx.globalAlpha = near * 0.30 * amb;
+    vctx.filter = `blur(${(7 + gap * 0.25).toFixed(1)}px)`;
+    vctx.fillStyle = "rgba(38,0,5,1)";
+    vctx.beginPath();
+    vctx.ellipse(pos.x * W, contact + span * 0.035, span * (0.30 - near * 0.11), span * 0.038, 0, 0, Math.PI * 2);
+    vctx.fill();
+    vctx.filter = "none";
+    vctx.restore();
+  }
+
+  // The butterfly's reflection in the wet clearcoat — the shot's second
+  // butterfly. Squashed, dimmed, and dragged toward the colour of the paint.
+  const reflA = overHood ? clamp(0.44 - gap / (H * 0.10)) * (0.75 + flash * 0.9) : 0;
+  if (reflA > 0.01) {
+    // Only the patch around the insect is ever touched — clearing and
+    // blurring the whole frame for a thumbnail-sized reflection is waste.
+    const bx = Math.max(0, pos.x * W - span), bw = Math.min(W - bx, span * 2);
+    const by = Math.max(0, contact - span * 0.2), bh = Math.min(H - by, span * 1.6);
+
+    bugCtx.setTransform(1, 0, 0, 1, 0, 0);
+    bugCtx.clearRect(bx, by, bw, bh);
+    bugCtx.save();
+    bugCtx.translate(0, contact);
+    bugCtx.scale(1, -0.66);      // mirrored about the contact line, foreshortened
+    bugCtx.translate(0, -contact);
+    drawButterfly(bugCtx, pos.x * W, contact, span, t, amb * 0.85, flash, { backlit: false });
+    bugCtx.restore();
+
+    vctx.save();
+    vctx.globalAlpha = reflA;
+    vctx.filter = `blur(${(1.5 + zoom * 0.8).toFixed(1)}px)`;
+    vctx.beginPath();
+    vctx.rect(bx, Math.max(by, contact - 1), bw, bh);
+    vctx.clip();
+    vctx.drawImage(bugBuf, bx, by, bw, bh, bx, by, bw, bh);
+    vctx.filter = "none";
+    vctx.restore();
+  }
+
+  // The subject. Focal plane sits on the thorax, so it stays sharp.
+  drawButterfly(vctx, pos.x * W, pos.y * H, span, t, amb, flash);
+
+  vctx.restore();
+
+  // --- Post ---------------------------------------------------------
+
+  if (flash > 0.01) drawFlashPost(t, flash);
+  drawVignette(amb);
+  if (showGrain) drawGrain(t, amb);
+  drawLetterbox();
+}
+
+function drawRain(cx, t, amb, flash, zoom) {
+  const onset = ramp(t, 7.1, 8.0);
+  if (onset < 0.01) return;
+  // No filter here: a per-stroke blur on ninety strokes is expensive, and
+  // two stacked strokes — wide and faint over narrow and brighter — read the
+  // same at this scale.
+  cx.save();
+  cx.lineCap = "round";
+  const a = 0.22 * onset * (amb + flash);
+  for (const d of RAIN) {
+    const y = ((d.y + t * d.speed * 0.55) % 1.3) - 0.15;
+    const x = d.x + noise1(t * 0.6 + d.x * 10, 7) * 0.01;
+    const x0 = x * W, y0 = y * H, x1 = x * W + W * 0.004, y1 = (y + d.len) * H;
+    const w = 1 + d.z * 2.2;
+    cx.strokeStyle = `rgba(220,228,240,${a * 0.35})`;
+    cx.lineWidth = w * (3.5 + zoom);
+    cx.beginPath(); cx.moveTo(x0, y0); cx.lineTo(x1, y1); cx.stroke();
+    cx.strokeStyle = `rgba(226,233,244,${a * 0.55})`;
+    cx.lineWidth = w * 1.6;
+    cx.beginPath(); cx.moveTo(x0, y0); cx.lineTo(x1, y1); cx.stroke();
+  }
+  cx.restore();
+}
+
+function drawFlashPost(t, flash) {
+  // Global lift: the whole frame takes the key.
+  vctx.save();
+  vctx.globalCompositeOperation = "lighter";
+  const g = vctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, `rgba(180,205,255,${flash * 0.30})`);
+  g.addColorStop(HOOD_Y, `rgba(200,215,255,${flash * 0.16})`);
+  g.addColorStop(1, `rgba(255,180,175,${flash * 0.08})`);
+  vctx.fillStyle = g;
+  vctx.fillRect(0, 0, W, H);
+
+  // Anamorphic streak off the blown specular — the lens' signature, not the
+  // bolt's. The bolt itself never enters frame.
+  const sy = H * (HOOD_Y + 0.055);
+  const st = vctx.createLinearGradient(0, sy, W, sy);
+  st.addColorStop(0, "rgba(120,170,255,0)");
+  st.addColorStop(0.5, `rgba(190,215,255,${flash * 0.5})`);
+  st.addColorStop(1, "rgba(120,170,255,0)");
+  vctx.fillStyle = st;
+  vctx.fillRect(0, sy - H * 0.012 * flash, W, H * 0.024 * flash);
+  vctx.restore();
+}
+
+function drawVignette(amb) {
+  const g = vctx.createRadialGradient(W * 0.5, H * 0.52, H * 0.20, W * 0.5, H * 0.52, W * 0.72);
+  g.addColorStop(0, "rgba(0,0,0,0)");
+  g.addColorStop(1, `rgba(0,0,0,${0.42 + (1 - amb) * 0.22})`);
+  vctx.fillStyle = g;
+  vctx.fillRect(0, 0, W, H);
+}
+
+let grainPhase = 0;
+function drawGrain(t, amb) {
+  grainPhase = (grainPhase + 1) % GRAIN_TILES.length;
+  const tile = GRAIN_TILES[grainPhase];
+  vctx.save();
+  vctx.globalCompositeOperation = "overlay";
+  vctx.globalAlpha = 0.055 + (1 - amb) * 0.05;   // grain rises as it gets dark
+  const p = vctx.createPattern(tile, "repeat");
+  vctx.fillStyle = p;
+  vctx.translate((t * 37) % 256 - 256, (t * 53) % 256 - 256);
+  vctx.fillRect(0, 0, W + 512, H + 512);
+  vctx.restore();
+}
+
+function drawLetterbox() {
+  // Soft edge falloff — keeps the frame from feeling like a web element.
+  vctx.save();
+  vctx.globalCompositeOperation = "multiply";
+  const g = vctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, "rgba(200,200,200,1)");
+  g.addColorStop(0.06, "rgba(255,255,255,1)");
+  g.addColorStop(0.94, "rgba(255,255,255,1)");
+  g.addColorStop(1, "rgba(200,200,200,1)");
+  vctx.fillStyle = g;
+  vctx.fillRect(0, 0, W, H);
+  vctx.restore();
+}
+
+/* ------------------------------------------------------------------ *
+ * Transport
+ * ------------------------------------------------------------------ */
+
+const playBtn = document.getElementById("play");
+const restartBtn = document.getElementById("restart");
+const scrub = document.getElementById("scrub");
+const tcEl = document.getElementById("tc");
+const cadenceEl = document.getElementById("cadence");
+const grainEl = document.getElementById("grain");
+const tbody = document.querySelector("#beats tbody");
+
+for (const [a, b, action, cam, light] of BEATS) {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `<td class="t">${a.toFixed(1)}–${b.toFixed(1)}s</td><td>${action}</td><td>${cam}</td><td>${light}</td>`;
+  tbody.appendChild(tr);
+}
+
+let playing = true;
+let t = 0;
+let last = performance.now();
+
+function timecode(sec) {
+  const s = Math.floor(sec), ms = Math.floor((sec - s) * 1000);
+  return `00:${String(s).padStart(2, "0")}.${String(ms).padStart(3, "0")}`;
+}
+
+function markBeat(time) {
+  [...tbody.children].forEach((tr, i) => {
+    tr.classList.toggle("on", time >= BEATS[i][0] && time < BEATS[i][1]);
+  });
+}
+
+let lastShown = -1, dirty = true;
+
+function tick(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (playing) t = (t + dt) % DUR;
+
+  // 24fps cadence: quantise the sampled time so motion steps like film
+  // rather than sliding at display refresh. On a 60Hz display that means
+  // most animation frames land on a time we have already drawn — redrawing
+  // them is pure cost, so skip straight to presenting the last one.
+  const shown = cadenceEl.checked ? Math.floor(t * 24) / 24 : t;
+  showGrain = grainEl.checked;
+
+  if (shown !== lastShown || dirty) {
+    renderFrame(shown);
+    lastShown = shown;
+    dirty = false;
+  }
+  scrub.value = t;
+  tcEl.textContent = timecode(t);
+  markBeat(t);
+  requestAnimationFrame(tick);
+}
+
+playBtn.onclick = () => {
+  playing = !playing;
+  playBtn.textContent = playing ? "Pause" : "Play";
+  last = performance.now();
+};
+restartBtn.onclick = () => { t = 0; dirty = true; };
+scrub.oninput = () => {
+  t = parseFloat(scrub.value);
+  playing = false;
+  playBtn.textContent = "Play";
+  dirty = true;
+};
+cadenceEl.onchange = grainEl.onchange = () => { dirty = true; };
+
+requestAnimationFrame(tick);
+</script>
