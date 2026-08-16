@@ -1,0 +1,888 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Blue Morpho / Ferrari / Grand Canyon — 10s Loop</title>
+<style>
+  html,body{margin:0;height:100%;background:#0b0705;overflow:hidden}
+  #stage{position:fixed;inset:0;display:grid;place-items:center}
+  #frame{position:relative;width:100vw;height:56.25vw;max-height:100vh;max-width:177.7778vh}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #grade{pointer-events:none;mix-blend-mode:soft-light;opacity:.55}
+</style>
+</head>
+<body>
+<div id="stage"><div id="frame">
+  <canvas id="scene"></canvas>
+  <canvas id="grade"></canvas>
+</div></div>
+<script>
+"use strict";
+
+/* ------------------------------------------------------------------ *
+ * Blue Morpho landing on a Ferrari hood, Grand Canyon rim, golden hour.
+ * Seamless 10s loop, 16:9, procedural — no assets, no dependencies.
+ * ------------------------------------------------------------------ */
+
+const W = 1920, H = 1080;          // world units
+const LOOP = 10.0;                 // seconds
+const HORIZON = 468;
+const TAU = Math.PI*2;
+
+const scene = document.getElementById("scene");
+const grade = document.getElementById("grade");
+const ctx   = scene.getContext("2d");
+const gctx  = grade.getContext("2d");
+
+/* ---------- deterministic noise ---------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function makeNoise(seed){
+  const r = mulberry32(seed), tbl = new Float32Array(512);
+  for (let i=0;i<512;i++) tbl[i] = r();
+  return x => {
+    const i = Math.floor(x), f = x - i, s = f*f*(3-2*f);
+    const a = tbl[(i)&511], b = tbl[(i+1)&511];
+    return a + (b-a)*s;
+  };
+}
+function fbm(noise, x, oct=5, lac=2.03, gain=0.5){
+  let s=0, amp=0.5, fr=1;
+  for (let i=0;i<oct;i++){ s += noise(x*fr)*amp; amp*=gain; fr*=lac; }
+  return s;
+}
+
+/* Loop-periodic flutter: harmonics of the loop frequency, so t=0 and t=LOOP
+   land on identical values with identical slopes. Returns roughly [-1,1]. */
+function wobble(t, p0, p1, p2){
+  const w = TAU*t/LOOP;
+  return 0.55*Math.sin(w*5+p0) + 0.30*Math.sin(w*8+p1) + 0.15*Math.sin(w*13+p2);
+}
+
+/* ---------- easing ---------- */
+const clamp = (v,a,b)=>v<a?a:v>b?b:v;
+const sat   = v=>clamp(v,0,1);
+const smooth= t=>t*t*(3-2*t);
+const easeOut = t=>1-Math.pow(1-t,3);
+const easeIn  = t=>t*t*t;
+const mix   = (a,b,t)=>a+(b-a)*t;
+const seg   = (t,a,b)=>sat((t-a)/(b-a));
+
+/* ================================================================== *
+ * WORLD (sky + canyon + cliff) — baked once into an offscreen canvas
+ * ================================================================== */
+const world = document.createElement("canvas");
+world.width = W; world.height = H;
+const wctx = world.getContext("2d");
+
+const SUN = { x: W*0.735, y: HORIZON - 96 };
+
+function paintSky(c){
+  const g = c.createLinearGradient(0,0,0,HORIZON+60);
+  g.addColorStop(0.00,"#1d3f6e");
+  g.addColorStop(0.26,"#4c6f96");
+  g.addColorStop(0.52,"#9d8f8c");
+  g.addColorStop(0.74,"#e0a367");
+  g.addColorStop(0.90,"#f6cf8e");
+  g.addColorStop(1.00,"#fde9bd");
+  c.fillStyle = g; c.fillRect(0,0,W,HORIZON+60);
+
+  // sun disc + atmospheric bloom
+  const halo = c.createRadialGradient(SUN.x,SUN.y,0,SUN.x,SUN.y,760);
+  halo.addColorStop(0.00,"rgba(255,246,214,0.98)");
+  halo.addColorStop(0.05,"rgba(255,226,158,0.80)");
+  halo.addColorStop(0.22,"rgba(255,193,116,0.34)");
+  halo.addColorStop(0.55,"rgba(238,150,88,0.12)");
+  halo.addColorStop(1.00,"rgba(238,150,88,0)");
+  c.fillStyle = halo; c.fillRect(0,0,W,HORIZON+240);
+
+  // thin high cloud banding
+  const n = makeNoise(1207);
+  c.save(); c.globalAlpha = 0.085; c.globalCompositeOperation = "screen";
+  for (let b=0;b<7;b++){
+    const y = 48 + b*52, amp = 6 + b*3.2;
+    c.beginPath(); c.moveTo(0,y);
+    for (let x=0;x<=W;x+=16) c.lineTo(x, y + (fbm(n,(x+b*300)*0.0022,3)-0.5)*amp*6);
+    c.lineTo(W,y+9+b*2); c.lineTo(0,y+9+b*2); c.closePath();
+    c.fillStyle = b<3 ? "#ffd9a8" : "#fff1d2"; c.fill();
+  }
+  c.restore();
+}
+
+/* One canyon tier: a terraced plateau with buttes standing on it and
+   side-canyons cut into it. Layered back to front with aerial haze. */
+function paintRidge(c, o){
+  const rnd = mulberry32(o.seed);
+  const n   = makeNoise(o.seed+3);
+  const base = x => o.y + (fbm(n,x*o.freq,3)-0.5)*o.amp;
+
+  c.save();
+
+  // --- the wall below the plateau ---
+  c.beginPath(); c.moveTo(0,H);
+  for (let x=0;x<=W;x+=8) c.lineTo(x, base(x));
+  c.lineTo(W,H); c.closePath();
+  const g = c.createLinearGradient(0,o.y-o.amp,0,o.y+o.depth);
+  g.addColorStop(0.00,o.lit);
+  g.addColorStop(0.22,o.mid);
+  g.addColorStop(1.00,o.dark);
+  c.fillStyle = g; c.fill();
+
+  // --- buttes and mesas standing on it ---
+  let x = -140;
+  while (x < W+140){
+    const hw = o.bw*(0.35+rnd()*1.0);
+    const h  = o.bh*(0.3+rnd()*1.0);
+    const cx = x + hw, by = base(cx);
+    if (rnd() > 0.24){
+      c.beginPath();
+      c.moveTo(cx-hw*1.24, by+6);                     // talus fan
+      c.lineTo(cx-hw*0.92, by-h*0.34);
+      c.lineTo(cx-hw*0.80, by-h*0.40);
+      c.lineTo(cx-hw*0.72, by-h*0.94);
+      c.lineTo(cx-hw*0.52, by-h);
+      c.lineTo(cx+hw*0.44, by-h*0.97);
+      c.lineTo(cx+hw*0.64, by-h*0.88);
+      c.lineTo(cx+hw*0.74, by-h*0.38);
+      c.lineTo(cx+hw*0.94, by-h*0.30);
+      c.lineTo(cx+hw*1.20, by+6);
+      c.closePath();
+      const bg = c.createLinearGradient(0,by-h,0,by+6);
+      bg.addColorStop(0.00,o.crown);
+      bg.addColorStop(0.35,o.lit);
+      bg.addColorStop(1.00,o.mid);
+      c.fillStyle = bg; c.fill();
+
+      c.save(); c.clip();
+      // sunlit right flank, shadowed left flank
+      c.fillStyle = "rgba(255,214,150,0.30)";
+      c.fillRect(cx+hw*0.30, by-h-4, hw, h+12);
+      c.fillStyle = "rgba(40,14,8,0.34)";
+      c.fillRect(cx-hw-4, by-h-4, hw*0.62, h+12);
+      // strata
+      c.globalAlpha = 0.30;
+      for (let y=by-h; y<by+6; y+=o.step){
+        c.fillStyle = ((y/o.step)|0)%2 ? "#1a0803" : "#ffd49a";
+        c.fillRect(cx-hw-6, y, hw*2+12, o.step*0.4);
+      }
+      c.restore();
+    }
+    x += hw*(1.5+rnd()*1.6);
+  }
+
+  // --- side-canyons cut down into the wall ---
+  c.save();
+  c.beginPath(); c.moveTo(0,H);
+  for (let px=0;px<=W;px+=8) c.lineTo(px, base(px));
+  c.lineTo(W,H); c.closePath(); c.clip();
+
+  c.globalAlpha = 0.22;                                   // wall strata
+  for (let y=o.y-o.amp; y<o.y+o.depth; y+=o.step){
+    c.fillStyle = ((y/o.step)|0)%2 ? "#180703" : "#ffcf92";
+    c.fillRect(0,y,W,o.step*0.4);
+  }
+  c.globalAlpha = 1; c.filter = "blur(2px)";
+  let cx2 = -60;
+  while (cx2 < W+60){
+    const gw = o.gap*(0.10+rnd()*0.26), gh = o.depth*(0.4+rnd()*0.6);
+    const gy = base(cx2);
+    c.fillStyle = "rgba(38,14,8,0.55)";
+    c.beginPath();
+    c.moveTo(cx2-gw, gy);
+    c.quadraticCurveTo(cx2-gw*0.2, gy+gh*0.55, cx2+gw*0.1, gy+gh);
+    c.quadraticCurveTo(cx2+gw*0.9, gy+gh*0.45, cx2+gw, gy);
+    c.closePath(); c.fill();
+    // lit spur beside each cleft
+    c.fillStyle = "rgba(255,206,146,0.16)";
+    c.beginPath();
+    c.moveTo(cx2+gw, gy);
+    c.quadraticCurveTo(cx2+gw*1.6, gy+gh*0.4, cx2+gw*2.0, gy+gh*0.7);
+    c.lineTo(cx2+gw*2.6, gy); c.closePath(); c.fill();
+    cx2 += o.gap*(0.7+rnd()*1.1);
+  }
+  c.restore();
+
+  // --- rim light along the plateau edge ---
+  c.save(); c.globalAlpha = 0.5; c.filter = "blur(1px)";
+  c.strokeStyle = o.crown; c.lineWidth = 4;
+  c.beginPath(); c.moveTo(0,base(0));
+  for (let px=0;px<=W;px+=8) c.lineTo(px, base(px));
+  c.stroke(); c.restore();
+
+  c.restore();
+
+  // --- aerial perspective, strongest at the crest ---
+  if (o.haze>0){
+    c.save();
+    const hz = c.createLinearGradient(0,o.y-o.bh,0,o.y+o.depth*0.8);
+    hz.addColorStop(0,`rgba(248,210,164,${o.haze})`);
+    hz.addColorStop(1,"rgba(210,146,108,0)");
+    c.fillStyle = hz; c.fillRect(0,o.y-o.bh-40,W,o.depth+o.bh+40);
+    c.restore();
+  }
+}
+
+function paintCanyon(c){
+  paintRidge(c,{seed:31, y:HORIZON+26, amp:16, bw:70,  bh:34, step:5,  depth:110, freq:0.0014, gap:74,  haze:0.55,
+                crown:"#ffeed0", lit:"#c9a189", mid:"#ab8672", dark:"#8a6c5c"});
+  paintRidge(c,{seed:57, y:HORIZON+84, amp:22, bw:96,  bh:52, step:7,  depth:150, freq:0.0018, gap:104, haze:0.32,
+                crown:"#ffdda6", lit:"#c87f57", mid:"#9d5836", dark:"#673a25"});
+  paintRidge(c,{seed:93, y:HORIZON+168,amp:30, bw:132, bh:74, step:10, depth:210, freq:0.0023, gap:142, haze:0.14,
+                crown:"#ffc47b", lit:"#bd6130", mid:"#89391a", dark:"#3f2010"});
+  paintRidge(c,{seed:140,y:HORIZON+286,amp:38, bw:184, bh:96, step:14, depth:300, freq:0.0029, gap:196, haze:0.03,
+                crown:"#f2a054", lit:"#9a481f", mid:"#622810", dark:"#1b0d07"});
+
+  // sun-shot haze pooling in the depths
+  const g = c.createLinearGradient(0,HORIZON+30,0,HORIZON+330);
+  g.addColorStop(0,"rgba(255,214,158,0.24)");
+  g.addColorStop(1,"rgba(255,182,120,0)");
+  c.fillStyle = g; c.fillRect(0,HORIZON+30,W,330);
+}
+
+/* the foreground rim the car is parked on, and the drop beyond it */
+function paintCliff(c){
+  const n = makeNoise(404);
+  const edge = [];
+  for (let x=-10;x<=W+10;x+=8){
+    let y = 806 + (fbm(n,x*0.0043,4)-0.5)*52;
+    y += Math.pow(sat((x-1440)/660),2)*96;                 // rim falls away to the right
+    y -= Math.pow(sat((240-x)/420),2)*44;
+    edge.push([x,y]);
+  }
+  const lip = x => edge[clamp(Math.round((x+10)/8),0,edge.length-1)][1];
+
+  // shadowed face dropping away just under the lip
+  c.save();
+  c.beginPath();
+  for (const p of edge) c.lineTo(p[0],p[1]);
+  for (let i=edge.length-1;i>=0;i--) c.lineTo(edge[i][0], edge[i][1]-70);
+  c.closePath();
+  c.filter = "blur(10px)"; c.fillStyle = "rgba(48,20,12,0.5)"; c.fill();
+  c.restore();
+
+  c.beginPath(); c.moveTo(-10,H+10);
+  for (const p of edge) c.lineTo(p[0],p[1]);
+  c.lineTo(W+10,H+10); c.closePath();
+
+  const g = c.createLinearGradient(0,780,0,H);
+  g.addColorStop(0.00,"#c9814f");
+  g.addColorStop(0.16,"#a4602f");
+  g.addColorStop(0.56,"#5e3319");
+  g.addColorStop(1.00,"#20100a");
+  c.save(); c.fillStyle = g; c.fill(); c.clip();
+
+  // fractured slabs of rim rock
+  const r = mulberry32(9001);
+  for (let i=0;i<46;i++){
+    const sx = -60 + r()*(W+120), sy = 830 + r()*250;
+    const sw = 90 + r()*260, sh = 26 + r()*70;
+    c.globalAlpha = 0.20 + r()*0.22;
+    c.fillStyle = r()>0.45 ? "#e0a570" : "#3a1c0e";
+    c.beginPath();
+    c.moveTo(sx, sy);
+    c.lineTo(sx+sw*(0.5+r()*0.5), sy-sh*r()*0.5);
+    c.lineTo(sx+sw, sy+sh*(0.3+r()*0.5));
+    c.lineTo(sx+sw*0.3, sy+sh);
+    c.closePath(); c.fill();
+  }
+  // grit and dust
+  for (let i=0;i<2800;i++){
+    const x = r()*W, y = 796 + r()*300, sz = r()*3.2+0.5;
+    c.globalAlpha = 0.05+r()*0.24;
+    c.fillStyle = r()>0.5 ? "#f4c795" : "#1e0d06";
+    c.beginPath(); c.ellipse(x,y,sz,sz*0.6,r()*3,0,6.2832); c.fill();
+  }
+  c.globalAlpha = 1;
+
+  // sun catching the very edge of the drop-off
+  c.lineWidth = 6; c.strokeStyle = "rgba(255,214,150,0.70)";
+  c.beginPath(); c.moveTo(edge[0][0],edge[0][1]);
+  for (const p of edge) c.lineTo(p[0],p[1]);
+  c.stroke();
+  c.lineWidth = 2; c.strokeStyle = "rgba(255,244,214,0.55)";
+  c.beginPath(); c.moveTo(edge[0][0],edge[0][1]-2);
+  for (const p of edge) c.lineTo(p[0],p[1]-2);
+  c.stroke();
+
+  // ground shadow deepening toward the bottom of frame
+  const vg = c.createLinearGradient(0,940,0,H);
+  vg.addColorStop(0,"rgba(24,10,6,0)");
+  vg.addColorStop(1,"rgba(20,8,5,0.72)");
+  c.fillStyle = vg; c.fillRect(0,900,W,H-900);
+  c.restore();
+
+  // a boulder anchoring the near-left corner
+  c.save();
+  c.beginPath();
+  c.moveTo(-40,H+20); c.lineTo(-30,952); c.lineTo(78,904);
+  c.lineTo(196,930); c.lineTo(246,1012); c.lineTo(214,H+20);
+  c.closePath();
+  const bg = c.createLinearGradient(-40,900,246,H);
+  bg.addColorStop(0,"#7a4522"); bg.addColorStop(0.5,"#452312"); bg.addColorStop(1,"#160a05");
+  c.fillStyle = bg; c.fill();
+  c.strokeStyle = "rgba(255,206,142,0.4)"; c.lineWidth = 4;
+  c.beginPath(); c.moveTo(-30,952); c.lineTo(78,904); c.lineTo(196,930); c.stroke();
+  c.restore();
+}
+
+paintSky(wctx);
+paintCanyon(wctx);
+paintCliff(wctx);
+
+/* depth-of-field: blurred copy of the world, cross-faded behind the car */
+const worldBlur = document.createElement("canvas");
+worldBlur.width = W; worldBlur.height = H;
+{
+  const b = worldBlur.getContext("2d");
+  b.filter = "blur(6px)";
+  b.drawImage(world,0,0);
+  b.filter = "none";
+}
+
+/* ================================================================== *
+ * FERRARI — low-slung front three-quarter, glossy candy red
+ * ================================================================== */
+/* Proportions are metric: ground y=390, 253 units per metre, nose to the right. */
+const CAR = { x: 300, y: 466, s: 1.0 };
+const GROUND = 390;
+const FW = { x: 999, y: 306, r: 84 };
+const RW = { x: 323, y: 306, r: 84 };
+const HOOD_Y = 152;                        // hood crest, car space
+
+function bodyPath(c){
+  c.beginPath();
+  c.moveTo(92,320);
+  c.lineTo(86,224);                                  // cut-off Kamm tail
+  c.bezierCurveTo(88,198, 104,184, 134,180);         // deck lip
+  c.bezierCurveTo(172,174, 208,174, 238,180);        // rear haunch
+  c.bezierCurveTo(262,142, 302,102, 366,86);         // rear screen
+  c.bezierCurveTo(420,74, 492,74, 542,86);           // roof
+  c.bezierCurveTo(600,100, 652,124, 694,154);        // raked windscreen
+  c.bezierCurveTo(800,148, 906,144, 1002,148);       // hood and fender crest
+  c.bezierCurveTo(1084,152, 1148,178, 1194,214);     // nose falls away
+  c.bezierCurveTo(1218,232, 1222,258, 1210,282);
+  c.bezierCurveTo(1198,304, 1178,318, 1150,324);     // front air dam
+  c.lineTo(FW.x+90, FW.y+30);
+  c.arc(FW.x, FW.y, FW.r+3, 0.32, Math.PI-0.32, true);   // front wheel arch
+  c.lineTo(RW.x+90, RW.y+30);
+  c.arc(RW.x, RW.y, RW.r+3, 0.32, Math.PI-0.32, true);   // rear wheel arch
+  c.bezierCurveTo(180,330, 120,328, 92,320);
+  c.closePath();
+}
+/* upper front flank — the polished surface that mirrors sky and butterfly */
+function hoodPath(c){
+  c.beginPath();
+  c.moveTo(696,156);
+  c.bezierCurveTo(800,148, 906,144, 1002,148);
+  c.bezierCurveTo(1084,152, 1148,178, 1194,214);
+  c.lineTo(1202,258);
+  c.bezierCurveTo(1140,220, 1082,196, 1002,192);
+  c.bezierCurveTo(902,192, 796,198, 712,208);
+  c.closePath();
+}
+function glassPath(c){
+  c.beginPath();
+  c.moveTo(252,190);
+  c.bezierCurveTo(274,152, 312,116, 372,98);
+  c.bezierCurveTo(424,84, 488,84, 534,96);
+  c.bezierCurveTo(592,112, 642,136, 682,164);
+  c.lineTo(612,166);
+  c.bezierCurveTo(470,158, 340,170, 252,190);
+  c.closePath();
+}
+
+function drawFerrari(c, t, butterfly){
+  c.save();
+  c.translate(CAR.x, CAR.y); c.scale(CAR.s, CAR.s);
+
+  // contact shadow pooled under the sills
+  c.save();
+  c.globalAlpha = 0.5; c.filter = "blur(26px)"; c.fillStyle = "#180a05";
+  c.beginPath(); c.ellipse(650,GROUND+4,600,34,0,0,6.2832); c.fill();
+  c.globalAlpha = 0.9; c.filter = "blur(10px)";
+  c.beginPath(); c.ellipse(660,GROUND-2,480,20,0,0,6.2832); c.fill();
+  for (const w of [RW,FW]){                                  // tyre contact patches
+    c.globalAlpha = 0.95; c.filter = "blur(5px)";
+    c.beginPath(); c.ellipse(w.x, GROUND+1, w.r*0.7, 9, 0, 0, 6.2832); c.fill();
+  }
+  c.restore();
+
+  c.fillStyle = "#140905";
+  for (const w of [RW,FW]){
+    c.beginPath(); c.arc(w.x, w.y, w.r+4, Math.PI, 0); c.lineTo(w.x-w.r-4, w.y+30);
+    c.lineTo(w.x+w.r+4, w.y+30); c.closePath(); c.fill();
+  }
+  drawWheel(c, RW.x, RW.y, RW.r);
+  drawWheel(c, FW.x, FW.y, FW.r);
+
+  // --- body ---
+  bodyPath(c);
+  const paint = c.createLinearGradient(0,60,0,GROUND);
+  paint.addColorStop(0.00,"#ff6f55");
+  paint.addColorStop(0.22,"#ef2233");
+  paint.addColorStop(0.56,"#c50f23");
+  paint.addColorStop(0.84,"#730713");
+  paint.addColorStop(1.00,"#2e0409");
+  c.fillStyle = paint; c.fill();
+
+  c.save(); bodyPath(c); c.clip();
+
+  // golden sky rolling off the shoulder, canyon smeared under the beltline
+  const skyRef = c.createLinearGradient(0,60,0,GROUND);
+  skyRef.addColorStop(0.00,"rgba(255,230,182,0.55)");
+  skyRef.addColorStop(0.26,"rgba(216,152,110,0.20)");
+  skyRef.addColorStop(0.50,"rgba(48,22,32,0.30)");
+  skyRef.addColorStop(1.00,"rgba(0,0,0,0.58)");
+  c.fillStyle = skyRef; c.fillRect(0,40,1260,360);
+
+  c.globalAlpha = 0.34;
+  const hz = c.createLinearGradient(0,214,0,268);
+  hz.addColorStop(0,"rgba(255,196,128,0)");
+  hz.addColorStop(0.45,"rgba(255,214,162,0.95)");
+  hz.addColorStop(1,"rgba(104,48,32,0)");
+  c.fillStyle = hz; c.fillRect(0,210,1260,60);
+  c.globalAlpha = 1;
+
+  // shoulder-line specular sweep
+  c.save(); c.globalCompositeOperation="screen"; c.filter="blur(7px)";
+  const sw = c.createLinearGradient(120,180,1200,230);
+  sw.addColorStop(0.00,"rgba(255,255,255,0)");
+  sw.addColorStop(0.42,"rgba(255,240,214,0.75)");
+  sw.addColorStop(0.68,"rgba(255,214,168,0.42)");
+  sw.addColorStop(1.00,"rgba(255,255,255,0)");
+  c.fillStyle = sw;
+  c.beginPath();
+  c.moveTo(110,196); c.bezierCurveTo(460,176, 850,182, 1206,232);
+  c.lineTo(1206,256); c.bezierCurveTo(850,206, 460,200, 110,220);
+  c.closePath(); c.fill();
+  c.restore();
+
+  // shutlines and rocker
+  c.strokeStyle="rgba(38,2,8,0.42)"; c.lineWidth=3;
+  c.beginPath(); c.moveTo(438,186); c.bezierCurveTo(458,240, 466,292, 458,338); c.stroke();
+  c.beginPath(); c.moveTo(700,176); c.bezierCurveTo(718,232, 724,288, 718,334); c.stroke();
+  c.fillStyle="rgba(22,3,7,0.6)";
+  c.beginPath(); c.moveTo(438,322); c.lineTo(902,318); c.lineTo(898,342); c.lineTo(434,346); c.closePath(); c.fill();
+
+  // taillight bar, diffuser and exhausts
+  c.fillStyle = "rgba(190,16,26,0.95)";
+  c.beginPath(); c.moveTo(88,210); c.lineTo(198,202); c.lineTo(198,228); c.lineTo(90,236); c.closePath(); c.fill();
+  c.save(); c.globalCompositeOperation="screen"; c.filter="blur(9px)";
+  c.fillStyle="rgba(255,86,72,0.55)";
+  c.beginPath(); c.ellipse(142,220,64,14,0,0,6.2832); c.fill();
+  c.restore();
+  c.fillStyle = "rgba(20,5,7,0.78)";
+  c.beginPath(); c.moveTo(90,292); c.bezierCurveTo(150,282, 200,282, 232,290);
+  c.lineTo(226,322); c.lineTo(94,320); c.closePath(); c.fill();
+  c.fillStyle = "#2a2422";
+  for (const ex of [126,168]){ c.beginPath(); c.ellipse(ex,276,13,8,0,0,6.2832); c.fill(); }
+
+  // shoulder crease running the length of the flank
+  c.strokeStyle = "rgba(255,222,182,0.34)"; c.lineWidth = 3;
+  c.beginPath(); c.moveTo(152,204); c.bezierCurveTo(430,202, 760,206, 1050,196); c.stroke();
+  c.strokeStyle = "rgba(46,4,10,0.30)"; c.lineWidth = 3;
+  c.beginPath(); c.moveTo(152,210); c.bezierCurveTo(430,208, 760,212, 1050,202); c.stroke();
+
+  // fender gills behind the front wheel
+  c.save(); c.translate(858,214); c.rotate(-0.10);
+  for (let i=0;i<3;i++){
+    c.fillStyle = "rgba(16,3,6,0.8)";
+    c.beginPath(); c.roundRect(i*22, i*3, 13, 40-i*4, 6); c.fill();
+    c.fillStyle = "rgba(255,204,158,0.22)";
+    c.beginPath(); c.roundRect(i*22+2, i*3+2, 4, 34-i*4, 3); c.fill();
+  }
+  c.restore();
+
+  // wing mirror
+  c.fillStyle="#8e0b1b";
+  c.beginPath(); c.ellipse(716,172,27,11,-0.18,0,6.2832); c.fill();
+  c.fillStyle="rgba(28,5,9,0.85)";
+  c.beginPath(); c.moveTo(692,180); c.lineTo(708,172); c.lineTo(706,188); c.closePath(); c.fill();
+
+  // greenhouse
+  glassPath(c);
+  const glass = c.createLinearGradient(252,96,682,178);
+  glass.addColorStop(0.00,"#1a2b38");
+  glass.addColorStop(0.34,"#587687");
+  glass.addColorStop(0.58,"#d2dbd6");
+  glass.addColorStop(0.84,"#e9bb8b");
+  glass.addColorStop(1.00,"#5f3f2e");
+  c.fillStyle = glass; c.fill();
+  c.save(); glassPath(c); c.clip();
+  c.globalAlpha=0.32; c.fillStyle="#fff4d8";
+  c.beginPath(); c.moveTo(306,180); c.lineTo(430,100); c.lineTo(498,98); c.lineTo(374,182); c.closePath(); c.fill();
+  c.restore();
+  c.strokeStyle = "rgba(16,1,5,0.72)"; c.lineWidth = 5; glassPath(c); c.stroke();
+
+  // slim headlight
+  c.beginPath(); c.moveTo(1084,184); c.bezierCurveTo(1132,198, 1168,216, 1192,238);
+  c.bezierCurveTo(1154,236, 1110,220, 1078,202); c.closePath();
+  const hl = c.createLinearGradient(1078,184,1192,240);
+  hl.addColorStop(0,"#ffffff"); hl.addColorStop(0.45,"#d8ebff"); hl.addColorStop(1,"#3f6480");
+  c.fillStyle = hl; c.fill();
+  c.save(); c.globalCompositeOperation="screen"; c.filter="blur(12px)";
+  c.fillStyle="rgba(255,246,218,0.85)";
+  c.beginPath(); c.ellipse(1142,214,46,13,0.42,0,6.2832); c.fill();
+  c.restore();
+
+  // bumper crease
+  c.strokeStyle="rgba(50,4,10,0.35)"; c.lineWidth=3;
+  c.beginPath(); c.moveTo(1068,198); c.bezierCurveTo(1122,216, 1164,246, 1184,282); c.stroke();
+
+  // grille and splitter
+  c.fillStyle="rgba(11,2,4,0.94)";
+  c.beginPath(); c.moveTo(1102,258); c.bezierCurveTo(1166,250, 1210,262, 1208,288);
+  c.bezierCurveTo(1204,310, 1156,318, 1094,310); c.closePath(); c.fill();
+  c.strokeStyle="rgba(180,150,120,0.22)"; c.lineWidth=2;
+  for (let i=0;i<4;i++){ const y=266+i*12;
+    c.beginPath(); c.moveTo(1104,y); c.bezierCurveTo(1150,y-6, 1188,y-2, 1204,y+2); c.stroke(); }
+  c.fillStyle="rgba(10,2,3,0.95)";
+  c.beginPath(); c.moveTo(1090,320); c.lineTo(1208,314); c.lineTo(1196,330); c.lineTo(1090,332); c.closePath(); c.fill();
+
+  c.restore(); // end body clip
+
+  // --- hood: mirror surface (sky + canyon + butterfly reflection) ---
+  c.save();
+  hoodPath(c); c.clip();
+  const hoodG = c.createLinearGradient(702,146,1220,262);
+  hoodG.addColorStop(0.00,"#ffb094");
+  hoodG.addColorStop(0.26,"#f6414a");
+  hoodG.addColorStop(0.64,"#c51127");
+  hoodG.addColorStop(1.00,"#5d0712");
+  c.fillStyle = hoodG; c.fill();
+
+  const mir = c.createLinearGradient(0,136,0,260);
+  mir.addColorStop(0.00,"rgba(255,240,200,0.70)");
+  mir.addColorStop(0.34,"rgba(255,194,136,0.36)");
+  mir.addColorStop(0.74,"rgba(140,64,54,0.16)");
+  mir.addColorStop(1.00,"rgba(0,0,0,0.30)");
+  c.fillStyle = mir; c.fillRect(680,140,560,140);
+
+  // butterfly mirrored in the polish, about the hood crest
+  if (butterfly.alpha > 0.01){
+    const bx = butterfly.x - CAR.x, by = butterfly.y - CAR.y;
+    c.save();
+    c.globalAlpha = butterfly.alpha * 0.42 * sat(1.7 - Math.abs(by-HOOD_Y)/180);
+    c.filter = "blur(3px)";
+    c.translate(bx, HOOD_Y*2 - by + 10);
+    c.scale(butterfly.s*0.94, -butterfly.s*0.58);
+    c.rotate(-butterfly.rot*0.5);
+    drawMorpho(c, butterfly.flap, true);
+    c.restore();
+  }
+
+  // clearcoat highlight riding the crest
+  c.save(); c.globalCompositeOperation="screen"; c.filter="blur(9px)";
+  c.fillStyle="rgba(255,250,234,0.72)";
+  c.beginPath(); c.ellipse(960,164,200,10,-0.010,0,6.2832); c.fill();
+  c.restore();
+  c.restore();
+
+  // power-bulge shutline
+  c.save(); c.strokeStyle="rgba(38,0,4,0.35)"; c.lineWidth=2.5;
+  c.beginPath(); c.moveTo(780,190); c.bezierCurveTo(890,180, 990,178, 1070,192); c.stroke();
+  c.restore();
+
+  c.restore();
+}
+
+function drawWheel(c,x,y,r){
+  c.save(); c.translate(x,y);
+  const tyre = c.createRadialGradient(-r*0.3,-r*0.3,r*0.2,0,0,r);
+  tyre.addColorStop(0,"#2b2624"); tyre.addColorStop(0.7,"#141110"); tyre.addColorStop(1,"#050403");
+  c.fillStyle = tyre;
+  c.beginPath(); c.arc(0,0,r,0,6.2832); c.fill();
+
+  const rim = c.createRadialGradient(-r*0.24,-r*0.24,3,0,0,r*0.76);
+  rim.addColorStop(0,"#efe9e0"); rim.addColorStop(0.5,"#8f8881"); rim.addColorStop(1,"#221d1a");
+  c.fillStyle = rim;
+  c.beginPath(); c.arc(0,0,r*0.70,0,6.2832); c.fill();
+
+  c.strokeStyle="rgba(18,14,12,0.85)"; c.lineWidth=r*0.085;
+  for (let i=0;i<10;i++){
+    const a = i*0.6283 + 0.2;
+    c.beginPath(); c.moveTo(Math.cos(a)*r*0.15, Math.sin(a)*r*0.15);
+    c.lineTo(Math.cos(a)*r*0.68, Math.sin(a)*r*0.68); c.stroke();
+  }
+  c.fillStyle="#0f0c0b";                                   // brake caliper glimpse
+  c.beginPath(); c.arc(0,0,r*0.34,0,6.2832); c.fill();
+  c.fillStyle="#c8102e";
+  c.beginPath(); c.arc(0,0,r*0.16,0,6.2832); c.fill();
+
+  c.strokeStyle="rgba(255,214,158,0.35)"; c.lineWidth=3;   // low-sun rim light
+  c.beginPath(); c.arc(0,0,r-1.5,-1.2,0.3); c.stroke();
+  c.restore();
+}
+
+/* ================================================================== *
+ * BLUE MORPHO
+ * ================================================================== */
+function wingShape(c, fore){
+  c.beginPath();
+  if (fore){
+    c.moveTo(0,-4);
+    c.bezierCurveTo(-30,-64, -96,-104, -150,-92);
+    c.bezierCurveTo(-186,-84, -190,-40, -160,-14);
+    c.bezierCurveTo(-124,16, -56,22, 0,10);
+  } else {
+    c.moveTo(0,4);
+    c.bezierCurveTo(-44,10, -104,26, -126,62);
+    c.bezierCurveTo(-142,90, -120,112, -88,104);
+    c.bezierCurveTo(-44,94, -12,54, 0,18);
+  }
+  c.closePath();
+}
+
+/* one side; mirrored by the caller. `open` in [0..1] = wing spread */
+function wingPair(c, open, flat){
+  const squash = 0.16 + 0.84*open;
+  c.save(); c.scale(squash, 1); c.translate(0, (1-open)*-26);
+
+  for (const fore of [false,true]){
+    wingShape(c,fore);
+    const g = c.createLinearGradient(0,-90,-170,60);
+    if (flat){
+      g.addColorStop(0.00,"#7fc9ff");
+      g.addColorStop(0.55,"#2f7fe0");
+      g.addColorStop(1.00,"#0d1c4a");
+    } else {
+      const shimmer = 0.35 + 0.65*open;                 // iridescence tracks angle
+      g.addColorStop(0.00,`rgba(${(150+80*shimmer)|0},${(226*shimmer+40)|0},255,1)`);
+      g.addColorStop(0.28,`rgba(${(52+70*shimmer)|0},${(140+70*shimmer)|0},255,1)`);
+      g.addColorStop(0.58,"#1b4fc4");
+      g.addColorStop(0.82,"#122a86");
+      g.addColorStop(1.00,"#0a1440");
+    }
+    c.fillStyle = g; c.fill();
+
+    // dark brown-to-black margin
+    c.save(); c.clip();
+    c.lineWidth = 30; c.strokeStyle = "rgba(22,14,12,0.95)";
+    wingShape(c,fore); c.stroke();
+    c.lineWidth = 14; c.strokeStyle = "rgba(58,34,22,0.85)";
+    wingShape(c,fore); c.stroke();
+    c.restore();
+
+    // white marginal dots
+    c.fillStyle = "rgba(255,255,255,0.94)";
+    const dots = fore
+      ? [[-150,-72],[-166,-52],[-170,-30],[-150,-14],[-118,-88],[-88,-98]]
+      : [[-124,80],[-104,96],[-76,100],[-46,90],[-138,58]];
+    for (const [dx,dy] of dots){
+      c.beginPath(); c.ellipse(dx,dy,5.4,4.2,0,0,6.2832); c.fill();
+    }
+
+    // vein tracery + translucency
+    c.save(); c.clip(); c.globalAlpha = 0.28;
+    c.strokeStyle = "#04102f"; c.lineWidth = 2.2;
+    for (let i=0;i<7;i++){
+      c.beginPath(); c.moveTo(0, fore?-2:4);
+      c.quadraticCurveTo(-70, (fore?-40:44) + i*(fore?-7:6), -168, (fore?-70:78) + i*(fore?9:-9));
+      c.stroke();
+    }
+    c.restore();
+
+    if (!flat){                                          // specular sheen on the scales
+      c.save(); c.clip(); c.globalCompositeOperation="screen"; c.filter="blur(8px)";
+      c.globalAlpha = 0.30 + 0.45*open;
+      c.fillStyle="#bfe6ff";
+      c.beginPath(); c.ellipse(-96, fore?-56:62, 62, 22, fore?-0.5:0.4, 0, 6.2832); c.fill();
+      c.restore();
+    }
+  }
+  c.restore();
+}
+
+function drawMorpho(c, flap, flat){
+  // flap in [-1..1]; 1 = fully open, -1 = closed above the body
+  const open = Math.abs(flap);
+  const lift = (1-open)*-18;
+
+  c.save();
+  c.save(); c.translate(0,lift); wingPair(c, open, flat); c.restore();
+  c.save(); c.translate(0,lift); c.scale(-1,1); wingPair(c, open, flat); c.restore();
+
+  // body
+  const b = c.createLinearGradient(0,-30,0,44);
+  b.addColorStop(0,"#3a2a24"); b.addColorStop(0.5,"#17100e"); b.addColorStop(1,"#0a0605");
+  c.fillStyle = b;
+  c.beginPath(); c.ellipse(0,6,9,40,0,0,6.2832); c.fill();
+  c.beginPath(); c.ellipse(0,-30,9.5,11,0,0,6.2832); c.fill();
+
+  // antennae
+  c.strokeStyle="#120c0a"; c.lineWidth=2.4; c.lineCap="round";
+  for (const s of [-1,1]){
+    c.beginPath(); c.moveTo(s*3,-36);
+    c.quadraticCurveTo(s*26,-64, s*40,-84); c.stroke();
+    c.fillStyle="#120c0a";
+    c.beginPath(); c.ellipse(s*40,-84,3.4,3,0,0,6.2832); c.fill();
+  }
+  c.restore();
+}
+
+/* ---------- flight choreography (loop-continuous) ---------- */
+const P_START = { x: 2090, y: 60,   s: 0.40 };
+const P_LAND  = { x: 1260, y: 590,  s: 0.74 };   // settled on the hood crest
+
+function butterflyAt(t){
+  // phase weights: approach (0→5.6), settled (5.6→8.4), takeoff (8.4→10)
+  const approach = smooth(seg(t,0,5.6));
+  const takeoff  = easeIn(seg(t,8.4,LOOP));
+  const w = clamp(approach - takeoff, 0, 1);        // 0 at both loop ends, 1 while landed
+
+  // glide arc from start point to hood, with a soft overshoot pass
+  const arcX = mix(P_START.x, P_LAND.x, w) + Math.sin(w*Math.PI)*-96;
+  const arcY = mix(P_START.y, P_LAND.y, easeOut(w)) - Math.sin(w*Math.PI)*118;
+
+  // airborne flutter jitter, damped to zero once settled
+  const air = 1 - smooth(sat((w-0.86)/0.14));
+  const jx = wobble(t, 1.1, 2.7, 0.4)*54*air;
+  const jy = wobble(t, 4.2, 0.9, 5.1)*38*air + Math.sin(TAU*t*7/LOOP)*8*air;
+
+  // wingbeat: fast in flight, two deliberate flaps after touchdown, then rest
+  let beat;
+  if (t < 5.55){
+    beat = Math.cos(t*TAU*16/5.55);        // whole beats by touchdown
+  } else if (t < 8.35){
+    // two deliberate flaps at u≈0.3 and u≈1.1, wings held open in between
+    const u  = t - 5.55;
+    const f1 = Math.sin(sat((u-0.30)/0.52)*Math.PI);
+    const f2 = Math.sin(sat((u-1.10)/0.52)*Math.PI);
+    beat = clamp(1 - 1.55*Math.max(f1,f2), -1, 1);
+  } else {
+    // spinning back up to cruise; the phase lands on a whole number of beats at LOOP
+    const u = seg(t,8.35,LOOP);
+    beat = mix(1, Math.cos(u*u*TAU*5), smooth(sat(u*1.6)));
+  }
+
+  const s   = mix(P_START.s, P_LAND.s, easeOut(w));
+  const rot = mix(-0.42, 0.02, easeOut(w)) + wobble(t, 2.2, 5.5, 1.7)*0.22*air;
+
+  return {
+    x: arcX + jx,
+    y: arcY + jy,
+    s, rot,
+    flap: beat,
+    alpha: sat(w*3.2 + 0.15)
+  };
+}
+
+/* ================================================================== *
+ * ATMOSPHERE
+ * ================================================================== */
+function drawGodRays(c, t){
+  c.save();
+  c.globalCompositeOperation = "screen";
+  c.globalAlpha = 0.16 + 0.03*Math.sin(TAU*t/LOOP);
+  c.filter = "blur(22px)";
+  c.translate(SUN.x, SUN.y);
+  for (let i=0;i<11;i++){
+    const a = -1.9 + i*0.19 + Math.sin(TAU*t/LOOP + i)*0.012;
+    c.save(); c.rotate(a);
+    const g = c.createLinearGradient(0,0,1500,0);
+    g.addColorStop(0,"rgba(255,232,180,0.75)");
+    g.addColorStop(1,"rgba(255,200,130,0)");
+    c.fillStyle = g;
+    c.beginPath(); c.moveTo(0,0); c.lineTo(1500,-52); c.lineTo(1500,52); c.closePath(); c.fill();
+    c.restore();
+  }
+  c.restore();
+}
+
+function drawDust(c, t){
+  const r = mulberry32(555);
+  c.save(); c.globalCompositeOperation="screen";
+  for (let i=0;i<160;i++){
+    const bx = r()*W, by = 240 + r()*760, sp = 6+r()*22, ph = r()*6.2832;
+    const x = bx + Math.sin(TAU*t/LOOP + ph)*sp;
+    const y = by - ((t*6.2*(1+((r()*3)|0)) + r()*620) % 620) + 300;   // 620px per loop
+    const s = 0.8 + r()*2.6;
+    c.globalAlpha = (0.05 + r()*0.22) * sat((y-200)/300);
+    c.fillStyle = "#ffdca6";
+    c.beginPath(); c.arc(x,y,s,0,6.2832); c.fill();
+  }
+  c.restore();
+}
+
+/* film grade layer: vignette, warm bloom, grain */
+function paintGrade(){
+  grade.width = 960; grade.height = 540;
+  const g = gctx;
+  const v = g.createRadialGradient(480,250,120,480,270,700);
+  v.addColorStop(0,"rgba(255,238,208,0.20)");
+  v.addColorStop(0.55,"rgba(120,80,60,0)");
+  v.addColorStop(1,"rgba(20,8,6,0.85)");
+  g.fillStyle=v; g.fillRect(0,0,960,540);
+  const img = g.getImageData(0,0,960,540), d = img.data, r = mulberry32(7);
+  for (let i=0;i<d.length;i+=4){
+    const n = (r()-0.5)*26;
+    d[i]+=n; d[i+1]+=n; d[i+2]+=n;
+  }
+  g.putImageData(img,0,0);
+}
+paintGrade();
+
+/* ================================================================== *
+ * RENDER LOOP
+ * ================================================================== */
+function resize(){
+  const dpr = Math.min(devicePixelRatio||1, 2);
+  const r = scene.getBoundingClientRect();
+  scene.width  = Math.max(2, Math.round(r.width *dpr));
+  scene.height = Math.max(2, Math.round(r.height*dpr));
+}
+addEventListener("resize", resize);
+resize();
+
+const t0 = performance.now();
+
+function frame(now){
+  const t = ((now - t0)/1000) % LOOP;
+  const b = butterflyAt(t);
+
+  const k = scene.width / W;                              // fit world to canvas
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,scene.width,scene.height);
+  ctx.scale(k,k);
+
+  // dolly-in: 1.0 → 1.055 → 1.0, C1-continuous across the loop seam
+  const dolly = 1 + 0.055*(1-Math.cos(TAU*t/LOOP))*0.5;
+  const panX  = Math.sin(TAU*t/LOOP)*14;
+  ctx.save();
+  ctx.translate(W/2 + panX, H*0.56);
+  ctx.scale(dolly,dolly);
+  ctx.translate(-W/2, -H*0.56);
+
+  // background, softened by shallow depth of field
+  ctx.drawImage(worldBlur,0,0);
+  ctx.save(); ctx.globalAlpha = 0.46; ctx.drawImage(world,0,0); ctx.restore();
+
+  drawGodRays(ctx,t);
+  drawFerrari(ctx,t,b);
+  drawDust(ctx,t);
+
+  // butterfly (sharp focus plane)
+  ctx.save();
+  ctx.globalAlpha = b.alpha;
+  ctx.translate(b.x,b.y); ctx.rotate(b.rot); ctx.scale(b.s,b.s);
+  ctx.save(); ctx.globalAlpha = 0.30; ctx.filter="blur(14px)";
+  ctx.translate(0,10); drawMorpho(ctx,b.flap,true); ctx.restore();       // soft bloom pass
+  drawMorpho(ctx,b.flap,false);
+  ctx.restore();
+
+  // warm light wrap over everything
+  ctx.save();
+  ctx.globalCompositeOperation="screen"; ctx.globalAlpha=0.10;
+  const warm = ctx.createLinearGradient(W,0,W*0.2,H);
+  warm.addColorStop(0,"rgba(255,206,140,0.9)");
+  warm.addColorStop(1,"rgba(255,150,90,0)");
+  ctx.fillStyle=warm; ctx.fillRect(0,0,W,H);
+  ctx.restore();
+
+  ctx.restore();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
