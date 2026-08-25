@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Turn treasured photos into beautiful, personalized artwork with Portrait & Co.">
+<title>Portrait &amp; Co. — Your Photos. Your Art.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --bg:#f7f3ee;
+    --surface:#fffdf9;
+    --surface-2:#f1e9df;
+    --text:#1f1b18;
+    --muted:#766f67;
+    --accent:#bb7354;
+    --accent-dark:#99583c;
+    --gold:#af8a55;
+    --border:#e3d8cc;
+    --error:#b3413a;
+    --success:#4d7a62;
+    --serif:'Playfair Display', Georgia, serif;
+    --sans:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --shadow:0 18px 50px rgba(64,45,31,.09);
+    --shadow-sm:0 8px 24px rgba(64,45,31,.07);
+    --radius:22px;
+  }
+  html { scroll-behavior:smooth; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); line-height:1.6; overflow-x:hidden; }
+  button,input { font:inherit; }
+  img { display:block; max-width:100%; }
+  button:focus-visible,.upload-box:focus-visible,.tile:focus-visible,.style-btn:focus-visible { outline:3px solid rgba(187,115,84,.28); outline-offset:3px; }
+  section { padding:84px 24px; }
+  .wrap { width:min(1120px,100%); margin:0 auto; }
+
+  #story {
+    min-height:100vh;
+    display:grid;
+    place-items:center;
+    text-align:center;
+    padding:44px 24px 90px;
+    position:relative;
+    overflow:hidden;
+  }
+  #story::before,#story::after {
+    content:"";
+    position:absolute;
+    border-radius:50%;
+    filter:blur(4px);
+    opacity:.35;
+    pointer-events:none;
+  }
+  #story::before { width:420px; height:420px; background:#ead9c9; top:-150px; left:-130px; }
+  #story::after { width:340px; height:340px; background:#e8d8cc; right:-100px; bottom:-120px; }
+  .hero-inner { width:min(900px,100%); position:relative; z-index:1; }
+  .brand-kicker { text-transform:uppercase; letter-spacing:.22em; color:var(--gold); font-weight:700; font-size:.78rem; margin-bottom:22px; }
+  .video-placeholder {
+    width:100%;
+    aspect-ratio:16/9;
+    border-radius:28px;
+    border:1px solid var(--border);
+    background:linear-gradient(135deg,#ede4da,#faf7f2);
+    box-shadow:var(--shadow);
+    margin-bottom:48px;
+    display:grid;
+    place-items:center;
+    color:#958b81;
+    overflow:hidden;
+  }
+  .video-placeholder strong { font-family:var(--serif); font-size:1.2rem; color:#766d64; display:block; margin-bottom:4px; }
+  .headline { font-family:var(--serif); font-size:clamp(2.7rem,7vw,5.2rem); line-height:1.03; font-weight:600; max-width:860px; margin:0 auto 24px; letter-spacing:-.02em; }
+  .quote { font-family:var(--serif); font-style:italic; font-size:clamp(1.05rem,2vw,1.35rem); color:#49433e; margin-bottom:8px; }
+  .dedication { color:#8b827a; font-size:.92rem; margin-bottom:32px; }
+  .tagline { font-size:1.08rem; color:#534c46; margin-bottom:30px; }
+  .hero-note { margin-top:16px; color:#91887f; font-size:.83rem; }
+
+  .btn {
+    border:0; border-radius:999px; padding:15px 34px; cursor:pointer; font-weight:700; color:#fff;
+    background:var(--accent); box-shadow:var(--shadow-sm); transition:.2s ease; display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .btn:hover { background:var(--accent-dark); transform:translateY(-2px); }
+  .btn:active { transform:translateY(0); }
+  .btn:disabled { opacity:.52; cursor:not-allowed; transform:none; }
+  .btn-secondary { background:transparent; color:var(--accent); border:1.5px solid var(--accent); box-shadow:none; }
+  .btn-secondary:hover { color:#fff; }
+  .btn-text { border:0; background:none; color:var(--gold); cursor:pointer; font-weight:700; text-decoration:underline; text-underline-offset:4px; }
+  .btn-small { padding:10px 22px; font-size:.9rem; }
+
+  #create { border-top:1px solid var(--border); }
+  .section-eyebrow { text-align:center; color:var(--gold); font-size:.75rem; font-weight:700; letter-spacing:.17em; text-transform:uppercase; margin-bottom:8px; }
+  .section-title { font-family:var(--serif); font-size:clamp(2rem,4vw,2.7rem); text-align:center; line-height:1.15; }
+  .section-subtitle { text-align:center; color:var(--muted); max-width:650px; margin:10px auto 36px; font-size:.96rem; }
+
+  .step-card { background:rgba(255,253,249,.88); border:1px solid var(--border); border-radius:28px; padding:30px; box-shadow:var(--shadow-sm); }
+  .upload-box { border:2px dashed var(--gold); border-radius:22px; background:#fbf8f4; padding:56px 24px; text-align:center; cursor:pointer; transition:.2s ease; }
+  .upload-box:hover,.upload-box.drag-over { background:#f2e9de; border-color:var(--accent); transform:translateY(-1px); }
+  .upload-icon { width:54px; height:54px; margin:0 auto 16px; border-radius:50%; display:grid; place-items:center; background:#f1e3d8; color:var(--accent); font-size:1.4rem; }
+  .upload-box .main-text { font-size:1.05rem; font-weight:600; }
+  .upload-box .sub-text { color:var(--muted); font-size:.9rem; margin-top:7px; }
+  .upload-hint,.style-hint,.error-message,.status-message { text-align:center; font-size:.86rem; margin-top:12px; min-height:20px; }
+  .upload-hint,.style-hint { color:#958b82; }
+  .error-message { color:var(--error); }
+  .status-message { color:var(--success); }
+
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:22px; margin-top:28px; }
+  .tile { position:relative; border-radius:22px; overflow:hidden; background:var(--surface); border:3px solid transparent; box-shadow:var(--shadow-sm); cursor:pointer; transition:.2s ease; }
+  .tile:hover { transform:translateY(-3px); box-shadow:var(--shadow); }
+  .tile.selected { border-color:var(--accent); box-shadow:0 0 0 4px rgba(187,115,84,.16),var(--shadow); }
+  .tile.selected-for-style { border-color:var(--gold); box-shadow:0 0 0 4px rgba(175,138,85,.16),var(--shadow); }
+  .tile-image-wrap { aspect-ratio:1/1; background:#eee5dc; overflow:hidden; position:relative; }
+  .tile-image-wrap img { width:100%; height:100%; object-fit:cover; }
+  .tile-remove { position:absolute; top:10px; right:10px; z-index:3; width:32px; height:32px; border-radius:50%; border:0; background:rgba(31,27,24,.68); color:#fff; cursor:pointer; font-size:1.05rem; }
+  .tile-remove:hover { background:var(--error); }
+  .tile-style-label { min-height:44px; padding:12px 10px; text-align:center; color:var(--gold); font-weight:700; font-size:.84rem; }
+  .tile-origin-thumb { position:absolute; left:10px; bottom:10px; width:48px; height:48px; border-radius:10px; overflow:hidden; border:2px solid white; box-shadow:0 4px 12px rgba(0,0,0,.22); z-index:2; }
+  .tile-origin-thumb img { width:100%; height:100%; object-fit:cover; filter:none!important; }
+  .photo-count { margin-top:16px; text-align:center; color:var(--muted); font-size:.88rem; }
+
+  .style-card { margin-top:50px; }
+  .style-buttons { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; }
+  .style-btn { border:1.5px solid var(--border); background:#fff; color:var(--text); padding:12px 24px; border-radius:999px; cursor:pointer; font-weight:600; transition:.2s ease; }
+  .style-btn:hover { border-color:var(--gold); transform:translateY(-1px); }
+  .style-btn.active-style { background:var(--gold); border-color:var(--gold); color:#fff; }
+  .center-row { text-align:center; margin-top:34px; }
+
+  .loading-block { display:none; text-align:center; margin-top:34px; color:var(--muted); }
+  .loading-block.active { display:block; }
+  .spinner { width:36px; height:36px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; margin:0 auto 14px; animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  .results-shell { margin-top:58px; }
+  .result-note { max-width:720px; margin:0 auto; text-align:center; color:var(--muted); font-size:.88rem; }
+  .adjust-panel { max-width:540px; margin:30px auto 0; background:#fff; border:1px solid var(--border); border-radius:22px; padding:30px; box-shadow:var(--shadow-sm); display:none; }
+  .adjust-panel.active { display:block; }
+  .slider-row { margin-bottom:22px; }
+  .slider-row label { display:flex; justify-content:space-between; gap:20px; font-size:.9rem; font-weight:600; color:#4f4842; margin-bottom:10px; }
+  .slider-value { color:#998d83; font-weight:500; }
+  input[type="range"] { appearance:none; width:100%; height:3px; background:var(--border); border-radius:3px; outline:none; }
+  input[type="range"]::-webkit-slider-thumb { appearance:none; width:19px; height:19px; border-radius:50%; background:var(--accent); cursor:pointer; box-shadow:0 2px 7px rgba(0,0,0,.18); }
+  input[type="range"]::-moz-range-thumb { width:19px; height:19px; border:0; border-radius:50%; background:var(--accent); cursor:pointer; }
+  .adjust-actions { display:flex; justify-content:center; gap:12px; margin-top:18px; }
+  .no-selection-msg { text-align:center; color:#978d84; font-size:.9rem; margin-top:28px; }
+
+  .summary-box { max-width:570px; margin:58px auto 0; background:linear-gradient(180deg,#fffdf9,#fff); border:1px solid var(--border); border-radius:24px; box-shadow:var(--shadow); padding:34px 28px; text-align:center; }
+  .summary-price { font-family:var(--serif); font-size:1.55rem; margin-bottom:8px; }
+  .summary-save { color:var(--muted); font-size:.88rem; margin-bottom:22px; }
+  .cart-confirm { display:inline-block; color:var(--success); font-weight:700; margin-top:12px; font-size:.9rem; opacity:0; transition:.25s; }
+  .cart-confirm.show { opacity:1; }
+
+  #checkout { display:none; background:var(--surface-2); border-top:1px solid var(--border); }
+  #checkout.active { display:block; }
+  .checkout-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:14px; max-width:640px; margin:26px auto; }
+  .checkout-thumb { aspect-ratio:1/1; border-radius:14px; overflow:hidden; box-shadow:var(--shadow-sm); background:#fff; }
+  .checkout-thumb img { width:100%; height:100%; object-fit:cover; }
+  .checkout-total { text-align:center; font-family:var(--serif); font-size:1.7rem; margin:20px 0 28px; }
+  .payment-placeholder { max-width:520px; margin:0 auto 28px; padding:30px 24px; border:1px dashed var(--gold); border-radius:20px; background:#fbf8f4; text-align:center; color:#8b8279; }
+  .checkout-actions { text-align:center; }
+  .thank-you { display:none; text-align:center; margin-top:38px; }
+  .thank-you.active { display:block; }
+  .thank-you h3 { font-family:var(--serif); font-size:1.8rem; margin-bottom:10px; }
+  .download-list { display:flex; flex-direction:column; align-items:center; gap:10px; margin-top:18px; }
+
+  footer { text-align:center; padding:38px 24px; color:#9b9188; font-size:.84rem; }
+
+  @media (max-width:700px) {
+    section { padding:62px 18px; }
+    #story { padding:34px 18px 72px; }
+    .video-placeholder { border-radius:20px; margin-bottom:36px; }
+    .headline { font-size:clamp(2.45rem,13vw,4rem); }
+    .step-card { padding:20px; border-radius:22px; }
+    .upload-box { padding:42px 18px; }
+    .grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+    .style-btn { flex:1 1 calc(50% - 12px); padding:11px 14px; }
+    .adjust-panel { padding:24px 18px; }
+    .summary-box { padding:28px 20px; }
+    .btn { width:100%; max-width:360px; }
+    .btn-text { width:auto; }
+  }
+  @media (max-width:380px) {
+    .grid { grid-template-columns:1fr; }
+    .style-btn { flex-basis:100%; }
+  }
+
+  body { padding-top:64px; }
+  #progressBar {
+    position:fixed; top:0; left:0; right:0; z-index:999;
+    background:rgba(255,253,249,.96); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--border);
+    padding:12px 16px;
+  }
+  .progress-inner { width:min(760px,100%); margin:0 auto; display:flex; align-items:flex-start; justify-content:space-between; }
+  .progress-step { flex:1; display:flex; flex-direction:column; align-items:center; position:relative; text-align:center; }
+  .progress-step:not(:last-child)::after {
+    content:""; position:absolute; top:14px; left:calc(50% + 22px); right:calc(-50% + 22px);
+    height:2px; background:var(--border); z-index:0;
+  }
+  .progress-step.done:not(:last-child)::after { background:var(--accent); }
+  .progress-dot {
+    width:28px; height:28px; border-radius:50%; background:#fff; border:2px solid var(--border);
+    display:grid; place-items:center; font-size:.78rem; font-weight:700; color:var(--muted); position:relative; z-index:1;
+  }
+  .progress-step.active .progress-dot { border-color:var(--accent); color:var(--accent); }
+  .progress-step.done .progress-dot { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .progress-label { margin-top:6px; font-size:.72rem; font-weight:600; color:var(--muted); }
+  .progress-step.active .progress-label,.progress-step.done .progress-label { color:var(--text); }
+  @media (max-width:520px) {
+    .progress-label { font-size:.6rem; }
+    .progress-dot { width:24px; height:24px; font-size:.7rem; }
+  }
+
+  .zoom-trigger {
+    position:absolute; top:10px; left:10px; z-index:3; width:32px; height:32px; border-radius:50%;
+    border:0; background:rgba(31,27,24,.68); color:#fff; cursor:pointer; font-size:.95rem; display:grid; place-items:center;
+  }
+  .zoom-trigger:hover { background:var(--accent); }
+  .zoom-overlay { display:none; position:fixed; inset:0; z-index:1200; background:rgba(20,16,13,.9); padding:24px; overflow-y:auto; }
+  .zoom-overlay.active { display:flex; align-items:flex-start; justify-content:center; }
+  .zoom-dialog {
+    width:min(980px,100%); background:#fff; border-radius:26px; overflow:hidden; box-shadow:var(--shadow);
+    display:grid; grid-template-columns:1.3fr 1fr; margin:auto 0;
+  }
+  .zoom-image-side { background:#111; display:grid; place-items:center; position:relative; min-height:320px; }
+  .zoom-image-side img { max-width:100%; max-height:78vh; object-fit:contain; }
+  .zoom-close { position:absolute; top:14px; right:14px; width:38px; height:38px; border-radius:50%; border:0; background:rgba(0,0,0,.55); color:#fff; font-size:1.2rem; cursor:pointer; z-index:2; }
+  .zoom-close:hover { background:var(--error); }
+  .zoom-nav { position:absolute; top:50%; transform:translateY(-50%); width:40px; height:40px; border-radius:50%; border:0; background:rgba(0,0,0,.45); color:#fff; font-size:1.2rem; cursor:pointer; z-index:2; }
+  .zoom-nav:hover { background:var(--accent); }
+  .zoom-prev { left:14px; }
+  .zoom-next { right:14px; }
+  .zoom-panel { padding:30px; overflow-y:auto; }
+  .zoom-panel h3 { font-family:var(--serif); font-size:1.3rem; margin-bottom:4px; }
+  .zoom-panel .zoom-sub { color:var(--muted); font-size:.85rem; margin-bottom:20px; }
+  @media (max-width:760px) {
+    .zoom-dialog { grid-template-columns:1fr; }
+    .zoom-image-side img { max-height:46vh; }
+  }
+</style>
+</head>
+<body>
+<div id="progressBar" aria-label="Order progress">
+  <div class="progress-inner">
+    <div class="progress-step" data-step="upload"><div class="progress-dot">1</div><div class="progress-label">Upload</div></div>
+    <div class="progress-step" data-step="style"><div class="progress-dot">2</div><div class="progress-label">Style</div></div>
+    <div class="progress-step" data-step="create"><div class="progress-dot">3</div><div class="progress-label">Create</div></div>
+    <div class="progress-step" data-step="review"><div class="progress-dot">4</div><div class="progress-label">Review</div></div>
+    <div class="progress-step" data-step="download"><div class="progress-dot">5</div><div class="progress-label">Download</div></div>
+  </div>
+</div>
+<section id="story">
+  <div class="hero-inner">
+    <p class="brand-kicker">Portrait &amp; Co.</p>
+    <div class="video-placeholder" aria-label="Video placeholder">
+      <div><strong>Your story film goes here</strong><span>Video coming soon</span></div>
+    </div>
+    <h1 class="headline">Your Photos. Your Art. Forever.</h1>
+    <p class="quote">“Memory stays with us forever.”</p>
+    <p class="dedication">Dedicated to my wife Doreen.</p>
+    <p class="tagline">Turn a treasured photo into artwork made to keep.</p>
+    <button class="btn" type="button" onclick="scrollToCreate()">Upload Your Photo</button>
+    <p class="hero-note">Private upload • Up to 5 photos • Preview before checkout</p>
+  </div>
+</section>
+
+<section id="create">
+  <div class="wrap">
+    <p class="section-eyebrow">Step 1</p>
+    <h2 class="section-title">Choose your photos</h2>
+    <p class="section-subtitle">Upload one photo or build a small collection. You can add up to five images.</p>
+
+    <div class="step-card">
+      <div id="uploadSection">
+        <div class="upload-box" id="uploadBox" role="button" tabindex="0" aria-label="Upload photos">
+          <div class="upload-icon">↑</div>
+          <p class="main-text">Click to upload your photos</p>
+          <p class="sub-text">Or drag and drop them here</p>
+        </div>
+        <p class="upload-hint">JPG or PNG up to 10 MB each. HEIC can be added after server conversion is connected.</p>
+        <p class="error-message" id="uploadError" aria-live="polite"></p>
+        <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,image/jpeg,image/png" multiple hidden>
+      </div>
+
+      <div class="grid" id="photoGrid"></div>
+      <p class="photo-count" id="photoCount"></p>
+    </div>
+
+    <div id="styleSection" class="style-card" style="display:none;">
+      <p class="section-eyebrow">Step 2</p>
+      <h2 class="section-title">Choose an art style</h2>
+      <p class="section-subtitle">Select a photo above, then choose the style you want for that image.</p>
+      <div class="style-buttons">
+        <button class="style-btn" type="button" data-style="Watercolor">Watercolor</button>
+        <button class="style-btn" type="button" data-style="Oil Painting">Oil Painting</button>
+        <button class="style-btn" type="button" data-style="Line Art">Line Art</button>
+        <button class="style-btn" type="button" data-style="Vintage Poster">Vintage Poster</button>
+      </div>
+      <p class="style-hint" id="styleHint">Select a photo first.</p>
+      <div class="center-row"><button class="btn" type="button" id="createArtBtn">Create My Art</button></div>
+      <div class="loading-block" id="loadingBlock"><div class="spinner"></div><p id="loadingText">Preparing your preview...</p></div>
+    </div>
+
+    <div id="resultsSection" class="results-shell" style="display:none;">
+      <p class="section-eyebrow">Step 3</p>
+      <h2 class="section-title">Your art previews</h2>
+      <p class="section-subtitle">Click any artwork to fine-tune the preview. The small corner image shows the original photo.</p>
+      <p class="result-note">This prototype still uses browser preview effects. The code is now structured so the image source can be replaced with real AI-generated preview URLs from your backend.</p>
+      <div class="grid" id="artGrid"></div>
+      <div class="center-row"><button class="btn" type="button" id="reviewPhotosBtn">Review Photos</button></div>
+      <div class="center-row"><button class="btn-text" type="button" id="tryAgainBtn">Change styles and try again</button></div>
+
+      <h2 class="section-title" style="margin-top:58px;">Make it yours</h2>
+      <p class="no-selection-msg" id="noSelectionMsg">Select an artwork above to adjust it.</p>
+      <div class="adjust-panel" id="adjustPanel">
+        <div class="slider-row"><label for="sBrightness"><span>Brightness</span><span class="slider-value" id="vBrightness">100</span></label><input type="range" id="sBrightness" min="50" max="150" value="100"></div>
+        <div class="slider-row"><label for="sContrast"><span>Contrast</span><span class="slider-value" id="vContrast">100</span></label><input type="range" id="sContrast" min="50" max="150" value="100"></div>
+        <div class="slider-row"><label for="sSaturation"><span>Saturation</span><span class="slider-value" id="vSaturation">100</span></label><input type="range" id="sSaturation" min="0" max="200" value="100"></div>
+        <div class="slider-row"><label for="sShadows"><span>Shadow depth</span><span class="slider-value" id="vShadows">0</span></label><input type="range" id="sShadows" min="0" max="100" value="0"></div>
+        <div class="slider-row"><label for="sWarmth"><span>Warmth</span><span class="slider-value" id="vWarmth">0</span></label><input type="range" id="sWarmth" min="0" max="100" value="0"></div>
+        <div class="adjust-actions"><button class="btn btn-secondary btn-small" type="button" id="resetBtn">Reset</button><button class="btn btn-small" type="button" id="doneBtn">Done</button></div>
+      </div>
+
+      <div class="summary-box">
+        <p class="summary-price" id="summaryPrice">0 art pieces — $0</p>
+        <p class="summary-save" id="summarySave">Create your previews to see package pricing.</p>
+        <button class="btn" type="button" id="addToCartBtn">Add to Cart</button>
+        <div><span class="cart-confirm" id="cartConfirm">Added to cart.</span></div>
+        <button class="btn-text" type="button" id="checkoutBtn" style="margin-top:16px;">Continue to Checkout</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="checkout">
+  <div class="wrap">
+    <p class="section-eyebrow">Checkout</p>
+    <h2 class="section-title">Review your collection</h2>
+    <p class="section-subtitle">Confirm your selected artwork before secure payment.</p>
+    <div class="checkout-grid" id="checkoutGrid"></div>
+    <p class="checkout-total" id="checkoutTotal">Total: $0</p>
+    <div class="payment-placeholder"><strong>Secure payment area</strong><br>Connect Stripe Checkout or Stripe Elements here.</div>
+    <div class="checkout-actions"><button class="btn" type="button" id="payNowBtn">Pay Now</button></div>
+    <div class="thank-you" id="thankYou">
+      <h3>Thank you for your order.</h3>
+      <p>Your finished high-resolution artwork would be unlocked here after payment confirmation.</p>
+      <div style="margin-top:22px;"><button class="btn" type="button" id="downloadZipBtn">Download Your Art (ZIP)</button></div>
+      <div class="download-list" id="downloadList"></div>
+    </div>
+  </div>
+</section>
+
+<footer>&copy; 2026 Portrait &amp; Co. — Turning memories into art.</footer>
+
+<div class="zoom-overlay" id="zoomOverlay" role="dialog" aria-modal="true" aria-label="Photo review and adjustment">
+  <div class="zoom-dialog">
+    <div class="zoom-image-side">
+      <button class="zoom-close" type="button" id="zoomCloseBtn" aria-label="Close">&times;</button>
+      <button class="zoom-nav zoom-prev" type="button" id="zoomPrevBtn" aria-label="Previous photo">&#8249;</button>
+      <img id="zoomImage" src="" alt="Zoomed artwork preview">
+      <button class="zoom-nav zoom-next" type="button" id="zoomNextBtn" aria-label="Next photo">&#8250;</button>
+    </div>
+    <div class="zoom-panel">
+      <h3 id="zoomTitle">Style</h3>
+      <p class="zoom-sub" id="zoomSub">Photo 1 of 1</p>
+      <div class="slider-row"><label for="zBrightness"><span>Brightness</span><span class="slider-value" id="zvBrightness">100</span></label><input type="range" id="zBrightness" min="50" max="150" value="100"></div>
+      <div class="slider-row"><label for="zContrast"><span>Contrast</span><span class="slider-value" id="zvContrast">100</span></label><input type="range" id="zContrast" min="50" max="150" value="100"></div>
+      <div class="slider-row"><label for="zSaturation"><span>Saturation</span><span class="slider-value" id="zvSaturation">100</span></label><input type="range" id="zSaturation" min="0" max="200" value="100"></div>
+      <div class="slider-row"><label for="zShadows"><span>Shadow depth</span><span class="slider-value" id="zvShadows">0</span></label><input type="range" id="zShadows" min="0" max="100" value="0"></div>
+      <div class="slider-row"><label for="zWarmth"><span>Warmth</span><span class="slider-value" id="zvWarmth">0</span></label><input type="range" id="zWarmth" min="0" max="100" value="0"></div>
+      <div class="adjust-actions"><button class="btn btn-secondary btn-small" type="button" id="zResetBtn">Reset</button><button class="btn btn-small" type="button" id="zDoneBtn">Done</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var state = {
+    photos: [],
+    artPieces: [],
+    styleTargetPhotoId: null,
+    selectedArtId: null,
+    cart: [],
+    nextId: 1
+  };
+
+  var PRICE_TABLE = { 0:0, 1:7, 2:12, 3:15, 4:18, 5:20 };
+  var MAX_SIZE = 10 * 1024 * 1024;
+  var MAX_PHOTOS = 5;
+  var ALLOWED_TYPES = ['image/jpeg','image/png'];
+
+  var STYLE_FILTERS = {
+    'Watercolor':'saturate(1.2) brightness(1.06) contrast(.92) blur(.25px)',
+    'Oil Painting':'saturate(1.38) contrast(1.16) brightness(.98)',
+    'Line Art':'grayscale(1) contrast(1.75) brightness(1.08)',
+    'Vintage Poster':'sepia(.42) saturate(1.28) contrast(1.08) brightness(1.02)'
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+  var els = {
+    uploadSection:$('uploadSection'), uploadBox:$('uploadBox'), fileInput:$('fileInput'), uploadError:$('uploadError'),
+    photoGrid:$('photoGrid'), photoCount:$('photoCount'), styleSection:$('styleSection'), styleHint:$('styleHint'),
+    createArtBtn:$('createArtBtn'), loadingBlock:$('loadingBlock'), loadingText:$('loadingText'), resultsSection:$('resultsSection'),
+    artGrid:$('artGrid'), adjustPanel:$('adjustPanel'), noSelectionMsg:$('noSelectionMsg'), summaryPrice:$('summaryPrice'),
+    summarySave:$('summarySave'), cartConfirm:$('cartConfirm'), checkoutSection:$('checkout'), checkoutGrid:$('checkoutGrid'),
+    checkoutTotal:$('checkoutTotal'), thankYou:$('thankYou'), downloadList:$('downloadList')
+  };
+
+  var sliders = {
+    brightness:$('sBrightness'), contrast:$('sContrast'), saturation:$('sSaturation'), shadows:$('sShadows'), warmth:$('sWarmth')
+  };
+  var sliderValues = {
+    brightness:$('vBrightness'), contrast:$('vContrast'), saturation:$('vSaturation'), shadows:$('vShadows'), warmth:$('vWarmth')
+  };
+
+  function makeId() { return state.nextId++; }
+  function scrollTo(el) { el.scrollIntoView({ behavior:'smooth', block:'start' }); }
+  window.scrollToCreate = function () { scrollTo($('create')); };
+
+  function setUploadError(message) { els.uploadError.textContent = message || ''; }
+
+  function revokePhotoUrl(photo) {
+    if (photo && photo.objectUrl) URL.revokeObjectURL(photo.objectUrl);
+  }
+
+  function handleFiles(fileList) {
+    setUploadError('');
+    var files = Array.prototype.slice.call(fileList || []);
+    if (!files.length) return;
+
+    var remaining = MAX_PHOTOS - state.photos.length;
+    if (remaining <= 0) {
+      setUploadError('You already have the maximum of 5 photos.');
+      return;
+    }
+
+    var accepted = 0;
+    files.slice(0, remaining).forEach(function (file) {
+      if (ALLOWED_TYPES.indexOf(file.type) === -1) {
+        setUploadError('For this browser prototype, please use JPG or PNG.');
+        return;
+      }
+      if (file.size > MAX_SIZE) {
+        setUploadError('One of the files is larger than 10 MB.');
+        return;
+      }
+      var objectUrl = URL.createObjectURL(file);
+      state.photos.push({ id:makeId(), file:file, src:objectUrl, objectUrl:objectUrl, style:null });
+      accepted++;
+    });
+
+    if (files.length > remaining) {
+      setUploadError('Only ' + remaining + ' more photo' + (remaining === 1 ? '' : 's') + ' could be added.');
+    }
+
+    if (accepted && !state.styleTargetPhotoId) state.styleTargetPhotoId = state.photos[0].id;
+    renderPhotoGrid();
+  }
+
+  els.uploadBox.addEventListener('click', function () { els.fileInput.click(); });
+  els.uploadBox.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); els.fileInput.click(); } });
+  els.uploadBox.addEventListener('dragover', function (e) { e.preventDefault(); els.uploadBox.classList.add('drag-over'); });
+  els.uploadBox.addEventListener('dragleave', function () { els.uploadBox.classList.remove('drag-over'); });
+  els.uploadBox.addEventListener('drop', function (e) { e.preventDefault(); els.uploadBox.classList.remove('drag-over'); handleFiles(e.dataTransfer.files); });
+  els.fileInput.addEventListener('change', function () { handleFiles(els.fileInput.files); els.fileInput.value=''; });
+
+  function renderPhotoGrid() {
+    els.photoGrid.innerHTML='';
+    state.photos.forEach(function (photo) {
+      var tile=document.createElement('div');
+      tile.className='tile' + (photo.id === state.styleTargetPhotoId ? ' selected-for-style' : '');
+      tile.tabIndex=0;
+      tile.setAttribute('role','button');
+      tile.setAttribute('aria-label','Select photo for style');
+
+      var wrap=document.createElement('div'); wrap.className='tile-image-wrap';
+      var img=document.createElement('img'); img.src=photo.src; img.alt='Uploaded photo preview'; wrap.appendChild(img);
+      var remove=document.createElement('button'); remove.type='button'; remove.className='tile-remove'; remove.innerHTML='&times;'; remove.setAttribute('aria-label','Remove photo');
+      remove.addEventListener('click',function(e){e.stopPropagation(); removePhoto(photo.id);});
+      var label=document.createElement('div'); label.className='tile-style-label'; label.textContent=photo.style || 'Choose a style';
+      tile.appendChild(wrap); tile.appendChild(remove); tile.appendChild(label);
+      function select(){ state.styleTargetPhotoId=photo.id; renderPhotoGrid(); }
+      tile.addEventListener('click',select);
+      tile.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===' '){e.preventDefault();select();} });
+      els.photoGrid.appendChild(tile);
+    });
+
+    els.photoCount.textContent = state.photos.length ? state.photos.length + ' of ' + MAX_PHOTOS + ' photos added' : '';
+    els.uploadSection.style.display = state.photos.length >= MAX_PHOTOS ? 'none' : 'block';
+    els.styleSection.style.display = state.photos.length ? 'block' : 'none';
+    updateStyleHint();
+  }
+
+  function removePhoto(id) {
+    var photo=state.photos.find(function(p){return p.id===id;});
+    revokePhotoUrl(photo);
+    state.photos=state.photos.filter(function(p){return p.id!==id;});
+    if (state.styleTargetPhotoId===id) state.styleTargetPhotoId=state.photos.length ? state.photos[0].id : null;
+    renderPhotoGrid();
+  }
+
+  document.querySelectorAll('.style-btn').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      if(!state.styleTargetPhotoId){ els.styleHint.textContent='Select a photo first.'; return; }
+      var style=btn.getAttribute('data-style');
+      var photo=state.photos.find(function(p){return p.id===state.styleTargetPhotoId;});
+      if(photo) photo.style=style;
+      renderPhotoGrid();
+    });
+  });
+
+  function updateStyleHint(){
+    document.querySelectorAll('.style-btn').forEach(function(btn){ btn.classList.remove('active-style'); });
+    if(!state.styleTargetPhotoId){ els.styleHint.textContent='Select a photo first.'; return; }
+    var photo=state.photos.find(function(p){return p.id===state.styleTargetPhotoId;});
+    if(!photo){ els.styleHint.textContent='Select a photo first.'; return; }
+    if(photo.style){
+      els.styleHint.textContent='Selected photo: ' + photo.style;
+      var active=document.querySelector('.style-btn[data-style="'+photo.style+'"]'); if(active) active.classList.add('active-style');
+    } else {
+      els.styleHint.textContent='Photo selected. Now choose a style.';
+    }
+  }
+
+  els.createArtBtn.addEventListener('click',async function(){
+    if(!state.photos.length) return;
+    var missing=state.photos.some(function(p){return !p.style;});
+    if(missing){ els.styleHint.textContent='Choose a style for every photo before creating your art.'; return; }
+
+    els.createArtBtn.disabled=true; els.loadingBlock.classList.add('active'); els.loadingText.textContent='Preparing your art previews...';
+    try {
+      /* PRODUCTION HOOK:
+         Replace createPreviewArt() with a real POST to your backend, for example:
+         POST /api/generate-art using FormData containing the original File + selected style.
+         Backend returns { previewUrl, highResAssetId }.
+      */
+      var generated=await Promise.all(state.photos.map(createPreviewArt));
+      state.artPieces=generated;
+      state.selectedArtId=null;
+      state.cart=[];
+      els.resultsSection.style.display='block';
+      renderArtGrid();
+      scrollTo(els.resultsSection);
+    } catch (err) {
+      els.styleHint.textContent='Something went wrong while creating the previews. Please try again.';
+    } finally {
+      els.createArtBtn.disabled=false; els.loadingBlock.classList.remove('active');
+    }
+  });
+
+  function createPreviewArt(photo){
+    return new Promise(function(resolve){
+      setTimeout(function(){
+        resolve({
+          id:makeId(), photoId:photo.id, originalSrc:photo.src, previewSrc:photo.src, style:photo.style,
+          filters:{brightness:100,contrast:100,saturation:100,shadows:0,warmth:0}, highResAssetId:null
+        });
+      },350);
+    });
+  }
+
+  function buildFilter(piece){
+    var f=piece.filters;
+    var base=STYLE_FILTERS[piece.style] || '';
+    var shadowBrightness=1-(f.shadows/100*.18);
+    return base + ' brightness('+(f.brightness/100)+') contrast('+(f.contrast/100)+') saturate('+(f.saturation/100)+') sepia('+(f.warmth/100*.28)+') brightness('+shadowBrightness+')';
+  }
+
+  function renderArtGrid(){
+    els.artGrid.innerHTML='';
+    state.artPieces.forEach(function(piece){
+      var tile=document.createElement('div'); tile.className='tile'+(piece.id===state.selectedArtId?' selected':''); tile.tabIndex=0; tile.setAttribute('role','button');
+      var wrap=document.createElement('div'); wrap.className='tile-image-wrap';
+      var img=document.createElement('img'); img.src=piece.previewSrc; img.alt=piece.style+' preview'; img.style.filter=buildFilter(piece); wrap.appendChild(img);
+      var thumb=document.createElement('div'); thumb.className='tile-origin-thumb'; var oi=document.createElement('img'); oi.src=piece.originalSrc; oi.alt='Original photo'; thumb.appendChild(oi); wrap.appendChild(thumb);
+      var remove=document.createElement('button'); remove.type='button'; remove.className='tile-remove'; remove.innerHTML='&times;'; remove.setAttribute('aria-label','Remove artwork'); remove.addEventListener('click',function(e){e.stopPropagation(); removeArtPiece(piece.id);});
+      var label=document.createElement('div'); label.className='tile-style-label'; label.textContent=piece.style;
+      tile.appendChild(wrap); tile.appendChild(remove); tile.appendChild(label);
+      function select(){ selectArtPiece(piece.id); }
+      tile.addEventListener('click',select); tile.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();select();}});
+      els.artGrid.appendChild(tile);
+    });
+    updatePriceSummary();
+  }
+
+  function removeArtPiece(id){
+    state.artPieces=state.artPieces.filter(function(p){return p.id!==id;});
+    if(state.selectedArtId===id){state.selectedArtId=null;els.adjustPanel.classList.remove('active');els.noSelectionMsg.style.display='block';}
+    state.cart=[];
+    renderArtGrid();
+  }
+
+  function selectArtPiece(id){
+    state.selectedArtId=id;
+    var piece=state.artPieces.find(function(p){return p.id===id;});
+    if(!piece) return;
+    Object.keys(sliders).forEach(function(key){sliders[key].value=piece.filters[key]; sliderValues[key].textContent=piece.filters[key];});
+    els.adjustPanel.classList.add('active'); els.noSelectionMsg.style.display='none'; renderArtGrid();
+  }
+
+  Object.keys(sliders).forEach(function(key){
+    sliders[key].addEventListener('input',function(){
+      var piece=state.artPieces.find(function(p){return p.id===state.selectedArtId;}); if(!piece)return;
+      piece.filters[key]=Number(sliders[key].value); sliderValues[key].textContent=sliders[key].value; renderArtGrid(); els.adjustPanel.classList.add('active');
+    });
+  });
+
+  $('resetBtn').addEventListener('click',function(){
+    var piece=state.artPieces.find(function(p){return p.id===state.selectedArtId;}); if(!piece)return;
+    piece.filters={brightness:100,contrast:100,saturation:100,shadows:0,warmth:0};
+    Object.keys(sliders).forEach(function(key){ sliders[key].value=piece.filters[key]; sliderValues[key].textContent=piece.filters[key]; }); renderArtGrid();
+  });
+
+  $('doneBtn').addEventListener('click',function(){ state.selectedArtId=null; els.adjustPanel.classList.remove('active'); els.noSelectionMsg.style.display='block'; renderArtGrid(); });
+
+  $('tryAgainBtn').addEventListener('click',function(){ state.artPieces=[]; state.selectedArtId=null; state.cart=[]; els.resultsSection.style.display='none'; els.adjustPanel.classList.remove('active'); scrollTo(els.styleSection); });
+
+  function currentPrice(count){ count=typeof count==='number'?count:state.artPieces.length; return PRICE_TABLE[count] !== undefined ? PRICE_TABLE[count] : 0; }
+  function updatePriceSummary(){
+    var count=state.artPieces.length, price=currentPrice(count), word=count===1?'piece':'pieces';
+    els.summaryPrice.textContent=count+' art '+word+' — $'+price;
+    els.summarySave.textContent=count>=2 ? 'Bundle pricing automatically applied.' : (count===1 ? 'Add more pieces to unlock bundle pricing.' : 'Create your previews to see package pricing.');
+  }
+
+  $('addToCartBtn').addEventListener('click',function(){
+    if(!state.artPieces.length)return;
+    state.cart=state.artPieces.map(function(p){return {id:p.id,previewSrc:p.previewSrc,originalSrc:p.originalSrc,style:p.style,filters:Object.assign({},p.filters),highResAssetId:p.highResAssetId};});
+    els.cartConfirm.classList.add('show'); setTimeout(function(){els.cartConfirm.classList.remove('show');},1800);
+  });
+
+  $('checkoutBtn').addEventListener('click',function(){
+    if(!state.cart.length && state.artPieces.length){
+      state.cart=state.artPieces.map(function(p){return {id:p.id,previewSrc:p.previewSrc,originalSrc:p.originalSrc,style:p.style,filters:Object.assign({},p.filters),highResAssetId:p.highResAssetId};});
+    }
+    if(!state.cart.length)return;
+    renderCheckout(); els.checkoutSection.classList.add('active'); scrollTo(els.checkoutSection);
+  });
+
+  function renderCheckout(){
+    els.checkoutGrid.innerHTML=''; els.thankYou.classList.remove('active');
+    state.cart.forEach(function(item){ var thumb=document.createElement('div'); thumb.className='checkout-thumb'; var img=document.createElement('img'); img.src=item.previewSrc; img.alt=item.style+' checkout preview'; img.style.filter=buildFilter(item); thumb.appendChild(img); els.checkoutGrid.appendChild(thumb); });
+    els.checkoutTotal.textContent='Total: $'+currentPrice(state.cart.length);
+  }
+
+  $('payNowBtn').addEventListener('click',function(){
+    if(!state.cart.length)return;
+    /* PRODUCTION HOOK: create Stripe Checkout Session on your backend here.
+       Do not trust the browser price; backend should calculate price from quantity.
+       Only unlock downloads after Stripe webhook confirms payment. */
+    els.thankYou.classList.add('active'); els.downloadList.innerHTML='';
+    state.cart.forEach(function(item,index){ var btn=document.createElement('button'); btn.type='button'; btn.className='btn btn-secondary btn-small'; btn.textContent='Download '+item.style+' '+(index+1); btn.addEventListener('click',function(){alert('Connect this to a signed high-resolution download URL after payment.');}); els.downloadList.appendChild(btn); });
+    scrollTo(els.thankYou);
+  });
+
+  $('downloadZipBtn').addEventListener('click',function(){ alert('Connect this button to a server-generated ZIP after confirmed payment.'); });
+
+  var reviewedFlag = false;
+  var STEP_LABELS = { upload:'1', style:'2', create:'3', review:'4', download:'5' };
+
+  function updateProgressBar(){
+    var allStyled = state.photos.length > 0 && state.photos.every(function(p){ return !!p.style; });
+    var status = {
+      upload: state.photos.length > 0,
+      style: allStyled,
+      create: state.artPieces.length > 0,
+      review: reviewedFlag,
+      download: els.thankYou.classList.contains('active')
+    };
+    var order = ['upload','style','create','review','download'];
+    var activeAssigned = false;
+    order.forEach(function(key){
+      var stepEl = document.querySelector('.progress-step[data-step="'+key+'"]');
+      if(!stepEl) return;
+      var dot = stepEl.querySelector('.progress-dot');
+      stepEl.classList.remove('done','active');
+      if(status[key]){
+        stepEl.classList.add('done');
+        dot.textContent = '✓';
+      } else {
+        dot.textContent = STEP_LABELS[key];
+        if(!activeAssigned){ stepEl.classList.add('active'); activeAssigned = true; }
+      }
+    });
+  }
+
+  function addZoomTriggers(){
+    var tiles = els.artGrid.children;
+    state.artPieces.forEach(function(piece, idx){
+      var tile = tiles[idx];
+      if(!tile) return;
+      var wrap = tile.querySelector('.tile-image-wrap');
+      if(!wrap || wrap.querySelector('.zoom-trigger')) return;
+      var zBtn=document.createElement('button');
+      zBtn.type='button'; zBtn.className='zoom-trigger'; zBtn.innerHTML='&#128269;'; zBtn.setAttribute('aria-label','Zoom and adjust '+piece.style);
+      zBtn.addEventListener('click',function(e){ e.stopPropagation(); openZoom(idx); });
+      wrap.appendChild(zBtn);
+    });
+  }
+
+  var _origRenderPhotoGrid = renderPhotoGrid;
+  renderPhotoGrid = function(){ _origRenderPhotoGrid(); updateProgressBar(); };
+
+  var _origRenderArtGrid = renderArtGrid;
+  renderArtGrid = function(){
+    _origRenderArtGrid();
+    addZoomTriggers();
+    updateProgressBar();
+    if(zoomEls.overlay.classList.contains('active')) renderZoom();
+  };
+
+  var zoomEls = {
+    overlay:$('zoomOverlay'), image:$('zoomImage'), title:$('zoomTitle'), sub:$('zoomSub'),
+    close:$('zoomCloseBtn'), prev:$('zoomPrevBtn'), next:$('zoomNextBtn'), reset:$('zResetBtn'), done:$('zDoneBtn')
+  };
+  var zoomSliders = { brightness:$('zBrightness'), contrast:$('zContrast'), saturation:$('zSaturation'), shadows:$('zShadows'), warmth:$('zWarmth') };
+  var zoomSliderValues = { brightness:$('zvBrightness'), contrast:$('zvContrast'), saturation:$('zvSaturation'), shadows:$('zvShadows'), warmth:$('zvWarmth') };
+  var zoomIndex = 0;
+
+  function openZoom(index){
+    if(!state.artPieces.length) return;
+    zoomIndex = Math.max(0, Math.min(index, state.artPieces.length - 1));
+    reviewedFlag = true;
+    zoomEls.overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    renderZoom();
+    updateProgressBar();
+  }
+
+  function closeZoom(){
+    zoomEls.overlay.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  function navigateZoom(delta){
+    if(!state.artPieces.length) return;
+    zoomIndex = (zoomIndex + delta + state.artPieces.length) % state.artPieces.length;
+    renderZoom();
+  }
+
+  function renderZoom(){
+    var piece = state.artPieces[zoomIndex];
+    if(!piece){ closeZoom(); return; }
+    zoomEls.image.src = piece.previewSrc;
+    zoomEls.image.alt = piece.style + ' zoomed preview';
+    zoomEls.image.style.filter = buildFilter(piece);
+    zoomEls.title.textContent = piece.style;
+    zoomEls.sub.textContent = 'Photo ' + (zoomIndex + 1) + ' of ' + state.artPieces.length;
+    Object.keys(zoomSliders).forEach(function(key){
+      zoomSliders[key].value = piece.filters[key];
+      zoomSliderValues[key].textContent = piece.filters[key];
+    });
+    var showNav = state.artPieces.length > 1;
+    zoomEls.prev.style.visibility = showNav ? 'visible' : 'hidden';
+    zoomEls.next.style.visibility = showNav ? 'visible' : 'hidden';
+  }
+
+  zoomEls.close.addEventListener('click', closeZoom);
+  zoomEls.done.addEventListener('click', closeZoom);
+  zoomEls.overlay.addEventListener('click', function(e){ if(e.target === zoomEls.overlay) closeZoom(); });
+  zoomEls.prev.addEventListener('click', function(){ navigateZoom(-1); });
+  zoomEls.next.addEventListener('click', function(){ navigateZoom(1); });
+  document.addEventListener('keydown', function(e){
+    if(!zoomEls.overlay.classList.contains('active')) return;
+    if(e.key === 'Escape') closeZoom();
+    if(e.key === 'ArrowLeft') navigateZoom(-1);
+    if(e.key === 'ArrowRight') navigateZoom(1);
+  });
+
+  Object.keys(zoomSliders).forEach(function(key){
+    zoomSliders[key].addEventListener('input',function(){
+      var piece = state.artPieces[zoomIndex]; if(!piece) return;
+      piece.filters[key] = Number(zoomSliders[key].value);
+      zoomSliderValues[key].textContent = zoomSliders[key].value;
+      zoomEls.image.style.filter = buildFilter(piece);
+      if(piece.id === state.selectedArtId){
+        sliders[key].value = piece.filters[key];
+        sliderValues[key].textContent = piece.filters[key];
+      }
+      _origRenderArtGrid();
+      addZoomTriggers();
+    });
+  });
+
+  zoomEls.reset.addEventListener('click',function(){
+    var piece = state.artPieces[zoomIndex]; if(!piece) return;
+    piece.filters = { brightness:100, contrast:100, saturation:100, shadows:0, warmth:0 };
+    renderZoom();
+    if(piece.id === state.selectedArtId){
+      Object.keys(sliders).forEach(function(key){ sliders[key].value=piece.filters[key]; sliderValues[key].textContent=piece.filters[key]; });
+    }
+    _origRenderArtGrid();
+    addZoomTriggers();
+  });
+
+  $('reviewPhotosBtn').addEventListener('click',function(){ openZoom(0); });
+  $('tryAgainBtn').addEventListener('click',function(){ reviewedFlag = false; updateProgressBar(); });
+  $('payNowBtn').addEventListener('click',function(){ updateProgressBar(); });
+
+  renderPhotoGrid();
+  window.addEventListener('beforeunload',function(){ state.photos.forEach(revokePhotoUrl); });
+})();
+</script>
+</body>
+</html>
