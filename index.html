@@ -647,6 +647,11 @@
       <!-- SECTION 2: PHOTO PREVIEW GRID -->
       <div class="grid" id="photoGrid"></div>
 
+      <!-- Clear All button: only shown once at least one photo is uploaded -->
+      <div class="center-row" id="clearAllRow" style="display:none;">
+        <button class="btn-text" id="clearAllBtn">Clear All Photos</button>
+      </div>
+
       <!-- SECTION 3: STYLE SELECTION (only shown once photos exist) -->
       <div id="styleSection" style="display:none; margin-top:56px;">
         <h2 class="section-title">Choose a style</h2>
@@ -679,10 +684,11 @@
         <!-- SECTION 8: TRY AGAIN -->
         <div class="center-row">
           <button class="btn-text" id="tryAgainBtn">Try Again</button>
+          <button class="btn-text" id="reviewAdjustBtn" style="margin-left:24px;">Review &amp; Adjust</button>
         </div>
 
         <!-- SECTION 6: ADJUSTMENT SLIDERS -->
-        <h2 class="section-title" style="margin-top:64px;">Make it yours.</h2>
+        <h2 class="section-title" id="makeItYoursTitle" style="margin-top:64px;">Make it yours.</h2>
         <p class="no-selection-msg" id="noSelectionMsg">Click an art piece above to adjust it.</p>
 
         <div class="adjust-panel" id="adjustPanel">
@@ -930,11 +936,27 @@
     // Show the style section only once at least one photo is uploaded
     styleSection.style.display = photos.length > 0 ? 'block' : 'none';
 
+    // Show the "Clear All Photos" button only once at least one photo is uploaded
+    clearAllRow.style.display = photos.length > 0 ? 'block' : 'none';
+
     if (photos.length === 0) {
       styleTargetPhotoId = null;
     }
     updateStyleHint();
   }
+
+  // ---------------------------------------------------------------
+  // CLEAR ALL PHOTOS BUTTON
+  // Removes every uploaded photo at once, so the customer can start over.
+  // ---------------------------------------------------------------
+  var clearAllRow = document.getElementById('clearAllRow');
+  var clearAllBtn = document.getElementById('clearAllBtn');
+
+  clearAllBtn.addEventListener('click', function () {
+    photos = [];
+    styleTargetPhotoId = null;
+    renderPhotoGrid();
+  });
 
   function removePhoto(id) {
     photos = photos.filter(function (p) { return p.id !== id; });
@@ -1167,6 +1189,15 @@
     resultsSection.style.display = 'none';
     adjustPanel.classList.remove('active');
     styleSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  // ---------------------------------------------------------------
+  // REVIEW & ADJUST BUTTON
+  // Jumps straight down to the "Make it yours" sliders section, so the
+  // customer can view their generated art pieces and adjust them.
+  // ---------------------------------------------------------------
+  document.getElementById('reviewAdjustBtn').addEventListener('click', function () {
+    document.getElementById('makeItYoursTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
   // ---------------------------------------------------------------
