@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portrait &amp; Co. — Your Photos. Your Art.</title>
+
+<!-- Google Fonts: Playfair Display (headline serif) + Inter (body sans-serif) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  /* ============================================
+     BASIC RESET
+     Makes every browser start from the same blank slate.
+  ============================================ */
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  /* ============================================
+     COLOR & FONT VARIABLES
+     Change a value here and it updates everywhere.
+  ============================================ */
+  :root {
+    --color-bg: #F7F3EE;          /* warm cream background */
+    --color-text: #1A1A1A;        /* dark charcoal text */
+    --color-accent: #C17A5B;      /* warm terracotta */
+    --color-accent-dark: #A8623F; /* darker terracotta for hover */
+    --color-gold: #B08D57;        /* muted gold, secondary accent */
+    --color-card: #FFFFFF;        /* card background */
+    --color-border: #E4DCD1;      /* soft border color */
+    --color-error: #B3413A;       /* small error messages */
+    --font-serif: 'Playfair Display', Georgia, serif;
+    --font-sans: 'Inter', -apple-system, sans-serif;
+    --shadow-soft: 0 10px 30px rgba(26, 26, 26, 0.08);
+    --radius: 16px;
+  }
+
+  html {
+    scroll-behavior: smooth; /* enables the smooth scroll for our button */
+  }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  img {
+    max-width: 100%;
+    display: block;
+  }
+
+  section {
+    padding: 80px 24px;
+  }
+
+  .wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  /* ============================================
+     PAGE 1 — THE STORY PAGE
+  ============================================ */
+  #story {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 60px 24px 100px;
+  }
+
+  /* Empty box reserved for a future video */
+  .video-placeholder {
+    width: 100%;
+    max-width: 800px;
+    aspect-ratio: 16 / 9;
+    background: linear-gradient(135deg, #EFE8DE, #F7F3EE);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-soft);
+    margin-bottom: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9A9186;
+    font-size: 0.9rem;
+    letter-spacing: 0.05em;
+  }
+
+  .headline {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-size: clamp(2.2rem, 5.5vw, 4rem);
+    max-width: 760px;
+    margin-bottom: 28px;
+  }
+
+  .quote {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 1.25rem;
+    color: #4A463F;
+    margin-bottom: 12px;
+  }
+
+  .dedication {
+    font-size: 0.9rem;
+    color: #8C8579;
+    margin-bottom: 40px;
+  }
+
+  .tagline {
+    font-size: 1.1rem;
+    margin-bottom: 36px;
+  }
+
+  /* ============================================
+     BUTTONS
+     One shared style for every solid button on the site.
+  ============================================ */
+  .btn {
+    display: inline-block;
+    background: var(--color-accent);
+    color: #fff;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 1rem;
+    border: none;
+    border-radius: 999px;
+    padding: 16px 40px;
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: var(--shadow-soft);
+  }
+  .btn:hover {
+    background: var(--color-accent-dark);
+    transform: translateY(-2px);
+  }
+  .btn:active {
+    transform: translateY(0);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--color-accent);
+    border: 1.5px solid var(--color-accent);
+    box-shadow: none;
+  }
+  .btn-secondary:hover {
+    background: var(--color-accent);
+    color: #fff;
+  }
+
+  .btn-text {
+    background: none;
+    border: none;
+    color: var(--color-gold);
+    font-family: var(--font-sans);
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 0.95rem;
+  }
+
+  .btn-small {
+    padding: 10px 22px;
+    font-size: 0.9rem;
+  }
+
+  /* ============================================
+     PAGE 2 — CREATION TOOL
+  ============================================ */
+  #create {
+    background: var(--color-bg);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .section-title {
+    font-family: var(--font-serif);
+    font-size: 1.8rem;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+
+  .section-subtitle {
+    text-align: center;
+    color: #6B6559;
+    margin-bottom: 40px;
+    font-size: 0.95rem;
+  }
+
+  /* --- Upload box --- */
+  .upload-box {
+    border: 2px dashed var(--color-gold);
+    border-radius: var(--radius);
+    background: #FBF8F4;
+    padding: 60px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+  }
+  .upload-box:hover,
+  .upload-box.drag-over {
+    background: #F1E9DC;
+    border-color: var(--color-accent);
+  }
+  .upload-box p.main-text {
+    font-size: 1.05rem;
+    margin-bottom: 8px;
+  }
+  .upload-hint {
+    text-align: center;
+    font-size: 0.85rem;
+    color: #9A9186;
+    margin-top: 14px;
+  }
+  .error-message {
+    text-align: center;
+    color: var(--color-error);
+    font-size: 0.88rem;
+    margin-top: 14px;
+    min-height: 20px;
+  }
+
+  /* --- Grids shared by photo preview and art results --- */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 24px;
+    margin-top: 32px;
+  }
+
+  .tile {
+    position: relative;
+    background: var(--color-card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-soft);
+    overflow: hidden;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  }
+  .tile.selected {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 4px rgba(193, 122, 91, 0.18), var(--shadow-soft);
+  }
+  .tile.selected-for-style {
+    border-color: var(--color-gold);
+    box-shadow: 0 0 0 4px rgba(176, 141, 87, 0.18), var(--shadow-soft);
+  }
+
+  .tile-image-wrap {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    background: #EFE8DE;
+  }
+  .tile-image-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .tile-remove {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(26, 26, 26, 0.65);
+    color: #fff;
+    border: none;
+    font-size: 0.95rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+  }
+  .tile-remove:hover {
+    background: var(--color-error);
+  }
+
+  .tile-style-label {
+    text-align: center;
+    padding: 10px 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-gold);
+    min-height: 36px;
+  }
+
+  /* Small original-photo thumbnail shown in the corner of an art tile */
+  .tile-origin-thumb {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid #fff;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+    z-index: 2;
+  }
+  .tile-origin-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* --- Style selection buttons --- */
+  .style-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 28px;
+  }
+  .style-btn {
+    background: var(--color-card);
+    border: 1.5px solid var(--color-border);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-weight: 500;
+    padding: 12px 26px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .style-btn:hover {
+    border-color: var(--color-gold);
+  }
+  .style-btn.active-style {
+    background: var(--color-gold);
+    border-color: var(--color-gold);
+    color: #fff;
+  }
+  .style-hint {
+    text-align: center;
+    font-size: 0.85rem;
+    color: #9A9186;
+    margin-top: 14px;
+  }
+
+  .center-row {
+    text-align: center;
+    margin-top: 40px;
+  }
+
+  /* Simple loading animation shown while "creating" art */
+  .loading-block {
+    display: none;
+    text-align: center;
+    margin-top: 40px;
+    color: #6B6559;
+  }
+  .loading-block.active {
+    display: block;
+  }
+  .spinner {
+    width: 34px;
+    height: 34px;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-accent);
+    border-radius: 50%;
+    margin: 0 auto 16px;
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* --- Adjustment sliders --- */
+  .adjust-panel {
+    max-width: 480px;
+    margin: 32px auto 0;
+    background: var(--color-card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-soft);
+    padding: 32px 28px;
+    display: none;
+  }
+  .adjust-panel.active {
+    display: block;
+  }
+  .slider-row {
+    margin-bottom: 24px;
+  }
+  .slider-row:last-of-type {
+    margin-bottom: 8px;
+  }
+  .slider-row label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 10px;
+    color: #4A463F;
+  }
+  /* Thin elegant slider, styled for both Chrome/Safari and Firefox */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 2px;
+    background: var(--color-border);
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    border: none;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  }
+
+  .adjust-actions {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 20px;
+  }
+
+  .no-selection-msg {
+    text-align: center;
+    color: #9A9186;
+    font-size: 0.9rem;
+    margin-top: 32px;
+  }
+
+  /* --- Price / cart summary --- */
+  .summary-box {
+    max-width: 520px;
+    margin: 0 auto;
+    background: var(--color-card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-soft);
+    padding: 36px 28px;
+    text-align: center;
+  }
+  .summary-price {
+    font-family: var(--font-serif);
+    font-size: 1.4rem;
+    margin-bottom: 24px;
+  }
+  .cart-confirm {
+    display: inline-block;
+    color: var(--color-gold);
+    font-weight: 600;
+    margin-top: 14px;
+    font-size: 0.9rem;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .cart-confirm.show {
+    opacity: 1;
+  }
+
+  /* ============================================
+     PAGE 3 — CHECKOUT
+  ============================================ */
+  #checkout {
+    display: none;
+    background: #F1EAE0;
+    border-top: 1px solid var(--color-border);
+  }
+  #checkout.active {
+    display: block;
+  }
+
+  .checkout-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 16px;
+    max-width: 600px;
+    margin: 32px auto;
+  }
+  .checkout-thumb {
+    border-radius: 10px;
+    overflow: hidden;
+    aspect-ratio: 1/1;
+    box-shadow: var(--shadow-soft);
+  }
+  .checkout-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .checkout-total {
+    text-align: center;
+    font-family: var(--font-serif);
+    font-size: 1.6rem;
+    margin: 20px 0 36px;
+  }
+
+  .payment-placeholder {
+    max-width: 480px;
+    margin: 0 auto 32px;
+    border: 1px dashed var(--color-gold);
+    border-radius: var(--radius);
+    background: #FBF8F4;
+    padding: 40px 24px;
+    text-align: center;
+    color: #8C8579;
+    font-size: 0.95rem;
+  }
+
+  .checkout-actions {
+    text-align: center;
+  }
+
+  /* Thank-you / download screen */
+  .thank-you {
+    display: none;
+    text-align: center;
+    margin-top: 40px;
+  }
+  .thank-you.active {
+    display: block;
+  }
+  .thank-you h3 {
+    font-family: var(--font-serif);
+    font-size: 1.6rem;
+    margin-bottom: 20px;
+  }
+  .download-list {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    margin-top: 24px;
+  }
+
+  /* ============================================
+     FOOTER
+  ============================================ */
+  footer {
+    text-align: center;
+    padding: 40px 24px;
+    color: #9A9186;
+    font-size: 0.85rem;
+  }
+
+  /* ============================================
+     MOBILE ADJUSTMENTS
+  ============================================ */
+  @media (max-width: 600px) {
+    section {
+      padding: 56px 18px;
+    }
+    .grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+    .checkout-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .style-buttons {
+      gap: 10px;
+    }
+    .style-btn {
+      padding: 10px 18px;
+      font-size: 0.9rem;
+    }
+    .adjust-panel {
+      padding: 24px 20px;
+    }
+  }
+
+  @media (max-width: 380px) {
+    .grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ========================================================
+       PAGE 1 — STORY PAGE
+       Just a video placeholder, headline, quote, dedication,
+       tagline and one button. Nothing else.
+  ======================================================== -->
+  <section id="story">
+    <div class="video-placeholder">Video coming soon</div>
+
+    <h1 class="headline">Your Photos. Your Art. Forever.</h1>
+
+    <p class="quote">"Memory stays with us forever."</p>
+
+    <p class="dedication">Dedicated to my wife Doreen.</p>
+
+    <p class="tagline">Turn your photo into art.</p>
+
+    <!-- Clicking this smooth-scrolls down to the creation tool -->
+    <button class="btn" onclick="scrollToCreate()">Upload Your Photo Here</button>
+  </section>
+
+  <!-- ========================================================
+       PAGE 2 — CREATION TOOL
+  ======================================================== -->
+  <section id="create">
+    <div class="wrap">
+
+      <!-- SECTION 1: UPLOAD AREA -->
+      <div id="uploadSection">
+        <div class="upload-box" id="uploadBox">
+          <p class="main-text">Drag and drop your photos here, or click to upload.</p>
+        </div>
+        <p class="upload-hint">Up to 5 photos. JPG, PNG, or HEIC. Max 10 MB each.</p>
+        <p class="error-message" id="uploadError"></p>
+        <!-- hidden native file input, triggered by clicking the box -->
+        <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.heic,image/jpeg,image/png,image/heic" multiple hidden>
+      </div>
+
+      <!-- SECTION 2: PHOTO PREVIEW GRID -->
+      <div class="grid" id="photoGrid"></div>
+
+      <!-- Clear All button: only shown once at least one photo is uploaded -->
+      <div class="center-row" id="clearAllRow" style="display:none;">
+        <button class="btn-text" id="clearAllBtn">Clear All Photos</button>
+      </div>
+
+      <!-- SECTION 3: STYLE SELECTION (only shown once photos exist) -->
+      <div id="styleSection" style="display:none; margin-top:56px;">
+        <h2 class="section-title">Choose a style</h2>
+        <p class="section-subtitle">Click a photo above, then pick a style for it.</p>
+        <div class="style-buttons">
+          <button class="style-btn" data-style="Watercolor">Watercolor</button>
+          <button class="style-btn" data-style="Oil Painting">Oil Painting</button>
+          <button class="style-btn" data-style="Line Art">Line Art</button>
+          <button class="style-btn" data-style="Vintage Poster">Vintage Poster</button>
+        </div>
+        <p class="style-hint" id="styleHint">Select a photo first to assign it a style.</p>
+
+        <!-- SECTION 4: CREATE ART BUTTON -->
+        <div class="center-row">
+          <button class="btn" id="createArtBtn">Create My Art</button>
+        </div>
+
+        <div class="loading-block" id="loadingBlock">
+          <div class="spinner"></div>
+          <p>Creating your art...</p>
+        </div>
+      </div>
+
+      <!-- SECTION 5: ART RESULTS GRID -->
+      <div id="resultsSection" style="display:none; margin-top:64px;">
+        <h2 class="section-title">Your Art</h2>
+        <p class="section-subtitle">Compare with the original in the corner of each piece.</p>
+        <div class="grid" id="artGrid"></div>
+
+        <!-- SECTION 8: TRY AGAIN -->
+        <div class="center-row">
+          <button class="btn-text" id="tryAgainBtn">Try Again</button>
+          <button class="btn-text" id="reviewAdjustBtn" style="margin-left:24px;">Review &amp; Adjust</button>
+        </div>
+
+        <!-- SECTION 6: ADJUSTMENT SLIDERS -->
+        <h2 class="section-title" id="makeItYoursTitle" style="margin-top:64px;">Make it yours.</h2>
+        <p class="no-selection-msg" id="noSelectionMsg">Click an art piece above to adjust it.</p>
+
+        <div class="adjust-panel" id="adjustPanel">
+          <div class="slider-row">
+            <label for="sBrightness">Brightness</label>
+            <input type="range" id="sBrightness" min="50" max="150" value="100">
+          </div>
+          <div class="slider-row">
+            <label for="sContrast">Contrast</label>
+            <input type="range" id="sContrast" min="50" max="150" value="100">
+          </div>
+          <div class="slider-row">
+            <label for="sSaturation">Saturation</label>
+            <input type="range" id="sSaturation" min="0" max="200" value="100">
+          </div>
+          <div class="slider-row">
+            <label for="sShadows">Shadows</label>
+            <input type="range" id="sShadows" min="0" max="100" value="0">
+          </div>
+          <div class="slider-row">
+            <label for="sWarmth">Warmth</label>
+            <input type="range" id="sWarmth" min="0" max="100" value="0">
+          </div>
+
+          <div class="adjust-actions">
+            <button class="btn-secondary btn" id="resetBtn">Reset</button>
+            <!-- SECTION 7: DONE BUTTON -->
+            <button class="btn btn-small" id="doneBtn">Done</button>
+          </div>
+        </div>
+
+        <!-- SECTION 9: PRICE DISPLAY AND CART -->
+        <div style="margin-top:64px;">
+          <div class="summary-box">
+            <p class="summary-price" id="summaryPrice">0 art pieces in your selection — Total: $0</p>
+            <button class="btn" id="addToCartBtn">Add to Cart</button>
+            <br>
+            <span class="cart-confirm" id="cartConfirm">Added to cart.</span>
+            <br>
+            <button class="btn-text" id="checkoutBtn" style="margin-top:20px;">Checkout</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================================
+       PAGE 3 — CHECKOUT / PAYMENT
+  ======================================================== -->
+  <section id="checkout">
+    <div class="wrap">
+      <h2 class="section-title">Checkout</h2>
+      <p class="section-subtitle">Review your art before payment.</p>
+
+      <div class="checkout-grid" id="checkoutGrid"></div>
+
+      <p class="checkout-total" id="checkoutTotal">Total: $0</p>
+
+      <div class="payment-placeholder">Payment form will be connected here.</div>
+
+      <div class="checkout-actions">
+        <button class="btn" id="payNowBtn">Pay Now</button>
+      </div>
+
+      <!-- Thank you / download screen, shown after "Pay Now" -->
+      <div class="thank-you" id="thankYou">
+        <h3>Thank you for your order!</h3>
+        <button class="btn" id="downloadZipBtn">Download Your Art (ZIP)</button>
+        <div class="download-list" id="downloadList"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>&copy; 2026 Portrait &amp; Co. — Turning memories into art.</footer>
+
+<script>
+  /* =====================================================================
+     PORTRAIT & CO. — SITE LOGIC
+     All the data for this demo lives in simple JavaScript arrays.
+     Nothing here talks to a real server. The "AI art" is just a CSS
+     filter applied to the original photo, and payment is a placeholder.
+  ===================================================================== */
+
+  // ---- App "database" (just kept in memory, in plain arrays) ----
+  // Each photo: { id, src, style }
+  var photos = [];
+  // Each art piece: { id, photoId, originalSrc, style, filters: {brightness, contrast, saturation, shadows, warmth} }
+  var artPieces = [];
+  // The photo currently clicked for style-assignment
+  var styleTargetPhotoId = null;
+  // The art piece currently selected for slider adjustment
+  var selectedArtId = null;
+  // The cart just holds a copy of the art pieces list at "Add to Cart" time
+  var cart = [];
+
+  var nextId = 1;
+  function makeId() { return nextId++; }
+
+  // Maps a style name to a CSS filter string, used to "simulate" the art style
+  var STYLE_FILTERS = {
+    'Watercolor':      'saturate(1.3) brightness(1.08) contrast(0.9) blur(0.4px)',
+    'Oil Painting':     'saturate(1.5) contrast(1.15) brightness(0.95)',
+    'Line Art':         'grayscale(1) contrast(1.6) brightness(1.1)',
+    'Vintage Poster':   'sepia(0.45) saturate(1.4) contrast(1.1) brightness(1.02)'
+  };
+
+  // ---------------------------------------------------------------
+  // SMOOTH SCROLL — Page 1 button jumps to the creation section
+  // ---------------------------------------------------------------
+  function scrollToCreate() {
+    document.getElementById('create').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  // ---------------------------------------------------------------
+  // SECTION 1 — UPLOAD AREA
+  // ---------------------------------------------------------------
+  var uploadBox = document.getElementById('uploadBox');
+  var fileInput = document.getElementById('fileInput');
+  var uploadError = document.getElementById('uploadError');
+
+  var ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/heic'];
+  var MAX_SIZE = 10 * 1024 * 1024; // 10 MB in bytes
+  var MAX_PHOTOS = 5;
+
+  // Clicking the box opens the file picker
+  uploadBox.addEventListener('click', function () {
+    fileInput.click();
+  });
+
+  // Drag-and-drop visual feedback
+  uploadBox.addEventListener('dragover', function (e) {
+    e.preventDefault();
+    uploadBox.classList.add('drag-over');
+  });
+  uploadBox.addEventListener('dragleave', function () {
+    uploadBox.classList.remove('drag-over');
+  });
+  uploadBox.addEventListener('drop', function (e) {
+    e.preventDefault();
+    uploadBox.classList.remove('drag-over');
+    handleFiles(e.dataTransfer.files);
+  });
+
+  fileInput.addEventListener('change', function () {
+    handleFiles(fileInput.files);
+    fileInput.value = ''; // reset so the same file can be chosen again later
+  });
+
+  function handleFiles(fileList) {
+    uploadError.textContent = '';
+
+    var files = Array.prototype.slice.call(fileList);
+
+    // Check the 5-photo limit first
+    if (photos.length + files.length > MAX_PHOTOS) {
+      uploadError.textContent = 'Maximum 5 photos allowed.';
+      return;
+    }
+
+    for (var i = 0; i < files.length; i++) {
+      var file = files[i];
+
+      // Check file type. HEIC files sometimes report an empty "type" in
+      // the browser, so we also allow checking the file name ending.
+      var isHeicByName = /\.heic$/i.test(file.name);
+      if (ALLOWED_TYPES.indexOf(file.type) === -1 && !isHeicByName) {
+        uploadError.textContent = 'Unsupported file type. Please upload JPG, PNG, or HEIC.';
+        continue;
+      }
+
+      // Check file size
+      if (file.size > MAX_SIZE) {
+        uploadError.textContent = 'File too large. Maximum 10 MB per photo.';
+        continue;
+      }
+
+      addPhoto(file);
+    }
+  }
+
+  function addPhoto(file) {
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      photos.push({ id: makeId(), src: e.target.result, style: null });
+      renderPhotoGrid();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ---------------------------------------------------------------
+  // SECTION 2 — PHOTO PREVIEW GRID
+  // ---------------------------------------------------------------
+  var photoGrid = document.getElementById('photoGrid');
+  var styleSection = document.getElementById('styleSection');
+
+  function renderPhotoGrid() {
+    photoGrid.innerHTML = '';
+
+    photos.forEach(function (photo) {
+      var tile = document.createElement('div');
+      tile.className = 'tile';
+      if (photo.id === styleTargetPhotoId) {
+        tile.classList.add('selected-for-style');
+      }
+
+      var imgWrap = document.createElement('div');
+      imgWrap.className = 'tile-image-wrap';
+      var img = document.createElement('img');
+      img.src = photo.src;
+      imgWrap.appendChild(img);
+
+      var removeBtn = document.createElement('button');
+      removeBtn.className = 'tile-remove';
+      removeBtn.innerHTML = '&times;';
+      removeBtn.onclick = function (e) {
+        e.stopPropagation(); // don't trigger the tile's own click
+        removePhoto(photo.id);
+      };
+
+      var label = document.createElement('div');
+      label.className = 'tile-style-label';
+      label.textContent = photo.style ? photo.style : '';
+
+      tile.appendChild(imgWrap);
+      tile.appendChild(removeBtn);
+      tile.appendChild(label);
+
+      // Clicking the tile selects it as the target for the next style click
+      tile.onclick = function () {
+        styleTargetPhotoId = photo.id;
+        renderPhotoGrid();
+      };
+
+      photoGrid.appendChild(tile);
+    });
+
+    // Show the upload box again only when there are no photos left
+    uploadBox.parentElement.style.display = photos.length === 0 ? 'block' : 'none';
+    // The whole upload SECTION (box + hint + error) hides once photos exist,
+    // but we still want the "add more" ability, so we simply keep the box
+    // visible until 5 photos are reached.
+    document.getElementById('uploadSection').style.display = photos.length >= MAX_PHOTOS ? 'none' : 'block';
+
+    // Show the style section only once at least one photo is uploaded
+    styleSection.style.display = photos.length > 0 ? 'block' : 'none';
+
+    // Show the "Clear All Photos" button only once at least one photo is uploaded
+    clearAllRow.style.display = photos.length > 0 ? 'block' : 'none';
+
+    if (photos.length === 0) {
+      styleTargetPhotoId = null;
+    }
+    updateStyleHint();
+  }
+
+  // ---------------------------------------------------------------
+  // CLEAR ALL PHOTOS BUTTON
+  // Removes every uploaded photo at once, so the customer can start over.
+  // ---------------------------------------------------------------
+  var clearAllRow = document.getElementById('clearAllRow');
+  var clearAllBtn = document.getElementById('clearAllBtn');
+
+  clearAllBtn.addEventListener('click', function () {
+    photos = [];
+    styleTargetPhotoId = null;
+    renderPhotoGrid();
+  });
+
+  function removePhoto(id) {
+    photos = photos.filter(function (p) { return p.id !== id; });
+    if (styleTargetPhotoId === id) {
+      styleTargetPhotoId = null;
+    }
+    renderPhotoGrid();
+  }
+
+  // ---------------------------------------------------------------
+  // SECTION 3 — STYLE SELECTION
+  // ---------------------------------------------------------------
+  var styleHint = document.getElementById('styleHint');
+  var styleButtons = document.querySelectorAll('.style-btn');
+
+  styleButtons.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (!styleTargetPhotoId) {
+        styleHint.textContent = 'Please click a photo first, then choose a style.';
+        return;
+      }
+      var photo = photos.find(function (p) { return p.id === styleTargetPhotoId; });
+      if (photo) {
+        photo.style = btn.getAttribute('data-style');
+      }
+      renderPhotoGrid();
+    });
+  });
+
+  function updateStyleHint() {
+    if (!styleTargetPhotoId) {
+      styleHint.textContent = 'Select a photo first to assign it a style.';
+    } else {
+      var photo = photos.find(function (p) { return p.id === styleTargetPhotoId; });
+      styleHint.textContent = photo && photo.style
+        ? 'Photo selected — currently "' + photo.style + '". Choose a style to change it.'
+        : 'Photo selected. Choose a style below.';
+    }
+  }
+
+  // ---------------------------------------------------------------
+  // SECTION 4 — CREATE ART BUTTON
+  // ---------------------------------------------------------------
+  var createArtBtn = document.getElementById('createArtBtn');
+  var loadingBlock = document.getElementById('loadingBlock');
+  var resultsSection = document.getElementById('resultsSection');
+
+  createArtBtn.addEventListener('click', function () {
+    if (photos.length === 0) return;
+
+    // Every photo needs a style before we "create" art
+    var missingStyle = photos.some(function (p) { return !p.style; });
+    if (missingStyle) {
+      styleHint.textContent = 'Please choose a style for every photo before creating your art.';
+      return;
+    }
+
+    loadingBlock.classList.add('active');
+    createArtBtn.disabled = true;
+
+    // Simulate a few seconds of "AI processing"
+    setTimeout(function () {
+      artPieces = photos.map(function (photo) {
+        return {
+          id: makeId(),
+          photoId: photo.id,
+          originalSrc: photo.src,
+          style: photo.style,
+          filters: { brightness: 100, contrast: 100, saturation: 100, shadows: 0, warmth: 0 }
+        };
+      });
+
+      loadingBlock.classList.remove('active');
+      createArtBtn.disabled = false;
+      resultsSection.style.display = 'block';
+      renderArtGrid();
+      resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 2200);
+  });
+
+  // ---------------------------------------------------------------
+  // SECTION 5 — ART RESULTS GRID
+  // ---------------------------------------------------------------
+  var artGrid = document.getElementById('artGrid');
+
+  // Builds the CSS filter string for one art piece (its base style + its own slider adjustments)
+  function buildFilter(piece) {
+    var base = STYLE_FILTERS[piece.style] || '';
+    var f = piece.filters;
+    var custom =
+      'brightness(' + (f.brightness / 100) + ') ' +
+      'contrast(' + (f.contrast / 100) + ') ' +
+      'saturate(' + (f.saturation / 100) + ') ' +
+      'sepia(' + (f.warmth / 100 * 0.35) + ') ' +
+      'brightness(' + (1 - (f.shadows / 100 * 0.25)) + ')';
+    return base + ' ' + custom;
+  }
+
+  function renderArtGrid() {
+    artGrid.innerHTML = '';
+
+    artPieces.forEach(function (piece) {
+      var tile = document.createElement('div');
+      tile.className = 'tile';
+      if (piece.id === selectedArtId) {
+        tile.classList.add('selected');
+      }
+
+      var imgWrap = document.createElement('div');
+      imgWrap.className = 'tile-image-wrap';
+      var img = document.createElement('img');
+      img.src = piece.originalSrc;
+      img.style.filter = buildFilter(piece);
+      imgWrap.appendChild(img);
+
+      // Small thumbnail of the original photo, for comparison
+      var originThumb = document.createElement('div');
+      originThumb.className = 'tile-origin-thumb';
+      var originImg = document.createElement('img');
+      originImg.src = piece.originalSrc;
+      originThumb.appendChild(originImg);
+      imgWrap.appendChild(originThumb);
+
+      var removeBtn = document.createElement('button');
+      removeBtn.className = 'tile-remove';
+      removeBtn.innerHTML = '&times;';
+      removeBtn.onclick = function (e) {
+        e.stopPropagation();
+        removeArtPiece(piece.id);
+      };
+
+      var label = document.createElement('div');
+      label.className = 'tile-style-label';
+      label.textContent = piece.style;
+
+      tile.appendChild(imgWrap);
+      tile.appendChild(removeBtn);
+      tile.appendChild(label);
+
+      tile.onclick = function () {
+        selectArtPiece(piece.id);
+      };
+
+      artGrid.appendChild(tile);
+    });
+
+    updatePriceSummary();
+  }
+
+  function removeArtPiece(id) {
+    artPieces = artPieces.filter(function (p) { return p.id !== id; });
+    if (selectedArtId === id) {
+      selectedArtId = null;
+      adjustPanel.classList.remove('active');
+      noSelectionMsg.style.display = 'block';
+    }
+    renderArtGrid();
+  }
+
+  // ---------------------------------------------------------------
+  // SECTION 6 — ADJUSTMENT SLIDERS
+  // ---------------------------------------------------------------
+  var adjustPanel = document.getElementById('adjustPanel');
+  var noSelectionMsg = document.getElementById('noSelectionMsg');
+  var sliders = {
+    brightness: document.getElementById('sBrightness'),
+    contrast: document.getElementById('sContrast'),
+    saturation: document.getElementById('sSaturation'),
+    shadows: document.getElementById('sShadows'),
+    warmth: document.getElementById('sWarmth')
+  };
+
+  function selectArtPiece(id) {
+    selectedArtId = id;
+    var piece = artPieces.find(function (p) { return p.id === id; });
+    if (!piece) return;
+
+    // Load that piece's saved slider values into the controls
+    sliders.brightness.value = piece.filters.brightness;
+    sliders.contrast.value = piece.filters.contrast;
+    sliders.saturation.value = piece.filters.saturation;
+    sliders.shadows.value = piece.filters.shadows;
+    sliders.warmth.value = piece.filters.warmth;
+
+    adjustPanel.classList.add('active');
+    noSelectionMsg.style.display = 'none';
+    renderArtGrid();
+  }
+
+  // Any slider movement updates the selected art piece live
+  Object.keys(sliders).forEach(function (key) {
+    sliders[key].addEventListener('input', function () {
+      var piece = artPieces.find(function (p) { return p.id === selectedArtId; });
+      if (!piece) return;
+      piece.filters[key] = Number(sliders[key].value);
+      renderArtGrid();
+      // Re-select so the highlight is preserved (renderArtGrid rebuilds the DOM)
+      adjustPanel.classList.add('active');
+    });
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', function () {
+    var piece = artPieces.find(function (p) { return p.id === selectedArtId; });
+    if (!piece) return;
+    piece.filters = { brightness: 100, contrast: 100, saturation: 100, shadows: 0, warmth: 0 };
+    sliders.brightness.value = 100;
+    sliders.contrast.value = 100;
+    sliders.saturation.value = 100;
+    sliders.shadows.value = 0;
+    sliders.warmth.value = 0;
+    renderArtGrid();
+  });
+
+  // ---------------------------------------------------------------
+  // SECTION 7 — DONE BUTTON
+  // ---------------------------------------------------------------
+  document.getElementById('doneBtn').addEventListener('click', function () {
+    selectedArtId = null;
+    adjustPanel.classList.remove('active');
+    noSelectionMsg.style.display = 'block';
+    renderArtGrid();
+  });
+
+  // ---------------------------------------------------------------
+  // SECTION 8 — TRY AGAIN BUTTON
+  // ---------------------------------------------------------------
+  document.getElementById('tryAgainBtn').addEventListener('click', function () {
+    artPieces = [];
+    selectedArtId = null;
+    resultsSection.style.display = 'none';
+    adjustPanel.classList.remove('active');
+    styleSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  // ---------------------------------------------------------------
+  // REVIEW & ADJUST BUTTON
+  // Jumps straight down to the "Make it yours" sliders section, so the
+  // customer can view their generated art pieces and adjust them.
+  // ---------------------------------------------------------------
+  document.getElementById('reviewAdjustBtn').addEventListener('click', function () {
+    document.getElementById('makeItYoursTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  // ---------------------------------------------------------------
+  // SECTION 9 — PRICE DISPLAY AND CART
+  // ---------------------------------------------------------------
+  var PRICE_TABLE = { 0: 0, 1: 7, 2: 12, 3: 15, 4: 18, 5: 20 };
+  var summaryPrice = document.getElementById('summaryPrice');
+  var cartConfirm = document.getElementById('cartConfirm');
+
+  function currentPrice() {
+    var count = artPieces.length;
+    return PRICE_TABLE[count] !== undefined ? PRICE_TABLE[count] : 0;
+  }
+
+  function updatePriceSummary() {
+    var count = artPieces.length;
+    var price = currentPrice();
+    var pieceWord = count === 1 ? 'piece' : 'pieces';
+    summaryPrice.textContent = count + ' art ' + pieceWord + ' in your selection — Total: $' + price;
+  }
+
+  document.getElementById('addToCartBtn').addEventListener('click', function () {
+    if (artPieces.length === 0) return;
+    // Store a snapshot copy of the current art pieces in the cart
+    cart = artPieces.map(function (p) {
+      return {
+        id: p.id,
+        originalSrc: p.originalSrc,
+        style: p.style,
+        filters: Object.assign({}, p.filters)
+      };
+    });
+    cartConfirm.classList.add('show');
+    setTimeout(function () { cartConfirm.classList.remove('show'); }, 2500);
+  });
+
+  // ---------------------------------------------------------------
+  // PAGE 3 — CHECKOUT
+  // ---------------------------------------------------------------
+  var checkoutSection = document.getElementById('checkout');
+  var checkoutGrid = document.getElementById('checkoutGrid');
+  var checkoutTotal = document.getElementById('checkoutTotal');
+  var thankYou = document.getElementById('thankYou');
+  var downloadList = document.getElementById('downloadList');
+
+  document.getElementById('checkoutBtn').addEventListener('click', function () {
+    // If nothing was added to the cart yet, use whatever art pieces exist now
+    if (cart.length === 0 && artPieces.length > 0) {
+      cart = artPieces.map(function (p) {
+        return {
+          id: p.id,
+          originalSrc: p.originalSrc,
+          style: p.style,
+          filters: Object.assign({}, p.filters)
+        };
+      });
+    }
+    renderCheckout();
+    checkoutSection.classList.add('active');
+    checkoutSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  function renderCheckout() {
+    checkoutGrid.innerHTML = '';
+    thankYou.classList.remove('active');
+
+    cart.forEach(function (item) {
+      var thumb = document.createElement('div');
+      thumb.className = 'checkout-thumb';
+      var img = document.createElement('img');
+      img.src = item.originalSrc;
+      img.style.filter = buildFilter(item);
+      thumb.appendChild(img);
+      checkoutGrid.appendChild(thumb);
+    });
+
+    var count = cart.length;
+    var price = PRICE_TABLE[count] !== undefined ? PRICE_TABLE[count] : 0;
+    checkoutTotal.textContent = 'Total: $' + price;
+  }
+
+  // "Pay Now" just simulates a successful payment for this demo
+  document.getElementById('payNowBtn').addEventListener('click', function () {
+    if (cart.length === 0) return;
+
+    thankYou.classList.add('active');
+    downloadList.innerHTML = '';
+
+    cart.forEach(function (item, index) {
+      var btn = document.createElement('button');
+      btn.className = 'btn-secondary btn btn-small';
+      btn.textContent = 'Download "' + item.style + '" piece ' + (index + 1);
+      btn.onclick = function () { alert('Your download would start here once connected.'); };
+      downloadList.appendChild(btn);
+    });
+
+    thankYou.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  document.getElementById('downloadZipBtn').addEventListener('click', function () {
+    alert('Your ZIP download would start here once connected.');
+  });
+
+  // ---------------------------------------------------------------
+  // INITIAL RENDER
+  // ---------------------------------------------------------------
+  renderPhotoGrid();
+</script>
+
+</body>
+</html>
